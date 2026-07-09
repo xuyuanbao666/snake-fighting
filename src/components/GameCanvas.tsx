@@ -33,9 +33,9 @@ const JOYSTICK_RADIUS = 60;
 const KNOB_RADIUS = 22;
 
 const FOOD_LIMITS = {
-  [FoodType.STAR]: { min: 12, max: 18 },
-  [FoodType.APPLE]: { min: 5, max: 8 },
-  [FoodType.DIAMOND]: { min: 2, max: 4 },
+  [FoodType.STAR]: { min: 8, max: 12 },
+  [FoodType.APPLE]: { min: 3, max: 5 },
+  [FoodType.DIAMOND]: { min: 1, max: 2 },
 };
 
 export const GameCanvas: React.FC = () => {

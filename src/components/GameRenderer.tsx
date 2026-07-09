@@ -1,5 +1,5 @@
-import React, { useMemo, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Dimensions, Animated } from 'react-native';
+import React, { useMemo, useEffect, useState } from 'react';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import { CELL_SIZE, GRID_SIZE, THEME_COLORS, Theme, FoodType, FOOD_CONFIG } from '../utils/constants';
 import { Position } from '../store/gameSlice';
 
@@ -16,7 +16,7 @@ interface GameRendererProps {
   fog?: { minX: number; minY: number; maxX: number; maxY: number } | null;
 }
 
-const SnakeHead: React.FC<{ x: number; y: number; color: string }> = ({ x, y, color }) => {
+const SnakeHead = React.memo<{ x: number; y: number; color: string }>(({ x, y, color }) => {
   const size = CELL_SIZE * 1.2;
   return (
     <View style={[styles.head, { left: x * CELL_SIZE - size / 2, top: y * CELL_SIZE - size / 2, width: size, height: size, backgroundColor: color }]}>
@@ -26,73 +26,30 @@ const SnakeHead: React.FC<{ x: number; y: number; color: string }> = ({ x, y, co
       <View style={[styles.eyePupil, { top: size * 0.24, left: size * 0.59 }]} />
     </View>
   );
-};
+});
 
-const SnakeSegment: React.FC<{ x: number; y: number; color: string; alpha: number; radius: number }> = ({
+const SnakeSegment = React.memo<{ x: number; y: number; color: string; alpha: number; radius: number }>(({
   x, y, color, alpha, radius,
 }) => (
   <View style={[styles.segment, { left: x * CELL_SIZE - radius, top: y * CELL_SIZE - radius, width: radius * 2, height: radius * 2, backgroundColor: color, opacity: alpha, borderRadius: radius }]} />
-);
+));
 
-const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }> = ({ x, y, type, theme }) => {
+const FoodItem = React.memo<{ x: number; y: number; type: FoodType }>(({ x, y, type }) => {
   const config = FOOD_CONFIG[type];
   let size = CELL_SIZE * 0.8;
   let borderRadius = size / 2;
-  const glowAnim = useRef(new Animated.Value(0)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   if (type === 'STAR') { size = CELL_SIZE * 0.7; }
   else if (type === 'APPLE') { size = CELL_SIZE * 0.85; }
   else if (type === 'DIAMOND') { size = CELL_SIZE * 0.95; borderRadius = CELL_SIZE * 0.15; }
 
-  useEffect(() => {
-    if (type === 'STAR') {
-      const a = Animated.loop(Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 1, duration: 500, useNativeDriver: false }),
-        Animated.timing(glowAnim, { toValue: 0, duration: 500, useNativeDriver: false }),
-      ]));
-      a.start();
-      return () => a.stop();
-    }
-  }, [type]);
-
-  useEffect(() => {
-    if (type === 'APPLE') {
-      const a = Animated.loop(Animated.sequence([
-        Animated.timing(scaleAnim, { toValue: 1.15, duration: 600, useNativeDriver: false }),
-        Animated.timing(scaleAnim, { toValue: 1, duration: 600, useNativeDriver: false }),
-      ]));
-      a.start();
-      return () => a.stop();
-    }
-  }, [type]);
-
-  useEffect(() => {
-    if (type === 'DIAMOND') {
-      const a = Animated.loop(Animated.timing(rotateAnim, { toValue: 1, duration: 1200, useNativeDriver: false }));
-      a.start();
-      return () => a.stop();
-    }
-  }, [type]);
-
-  const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] });
-  const glowSize = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [size * 1.3, size * 2] });
-  const rotate = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-
-  const animStyle: any = {};
-  if (type === 'STAR') { animStyle.shadowOpacity = glowOpacity; animStyle.shadowRadius = 20; animStyle.shadowColor = '#FFD700'; animStyle.shadowOffset = { width: 0, height: 0 }; animStyle.elevation = 10; }
-  else if (type === 'DIAMOND') { animStyle.transform = [{ rotate }]; animStyle.shadowOpacity = 0.9; animStyle.shadowRadius = 15; animStyle.shadowColor = '#00BCD4'; animStyle.elevation = 10; }
-  else if (type === 'APPLE') { animStyle.transform = [{ scale: scaleAnim }]; }
-
   return (
-    <Animated.View style={[styles.food, { left: x * CELL_SIZE - size / 2, top: y * CELL_SIZE - size / 2, width: size, height: size, backgroundColor: config.color, borderRadius }, animStyle]}>
+    <View style={[styles.food, { left: x * CELL_SIZE - size / 2, top: y * CELL_SIZE - size / 2, width: size, height: size, backgroundColor: config.color, borderRadius }]}>
       {type === 'APPLE' && <View style={styles.foodLeaf} />}
-      {type === 'STAR' && <Animated.View style={[styles.starGlow, { width: glowSize, height: glowSize, borderRadius: 100, opacity: glowOpacity }]} />}
       {type === 'DIAMOND' && <View style={styles.diamondShine} />}
-    </Animated.View>
+    </View>
   );
-};
+});
 
 export const GameRenderer: React.FC<GameRendererProps> = ({
   snakeBody, foods, theme, aiSnakes = [], traps = [], fog = null,
@@ -139,9 +96,9 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
 
   const foodElements = useMemo(() =>
     foods.filter(f => inView(f.position.x, f.position.y)).map((f, i) => (
-      <FoodItem key={i} x={f.position.x - offsetX} y={f.position.y - offsetY} type={f.type} theme={theme} />
+      <FoodItem key={i} x={f.position.x - offsetX} y={f.position.y - offsetY} type={f.type} />
     )),
-    [foods, offsetX, offsetY, theme, dims]);
+    [foods, offsetX, offsetY, dims]);
 
   const aiElements = useMemo(() => {
     const segR = CELL_SIZE * 0.35;

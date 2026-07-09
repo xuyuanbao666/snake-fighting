@@ -2,6 +2,8 @@ export class GameLoop {
   private onUpdate: () => void;
   private speed: number;
   private intervalId: ReturnType<typeof setInterval> | null = null;
+  private rafId: number | null = null;
+  private lastTime = 0;
 
   constructor(onUpdate: () => void, speed: number = 150) {
     this.onUpdate = onUpdate;
@@ -9,12 +11,18 @@ export class GameLoop {
   }
 
   start(): void {
-    if (this.intervalId) {
+    if (this.intervalId || this.rafId) {
       return;
     }
-    this.intervalId = setInterval(() => {
-      this.onUpdate();
-    }, this.speed);
+    this.lastTime = performance.now();
+    const loop = (time: number) => {
+      if (time - this.lastTime >= this.speed) {
+        this.lastTime = time;
+        this.onUpdate();
+      }
+      this.rafId = requestAnimationFrame(loop);
+    };
+    this.rafId = requestAnimationFrame(loop);
   }
 
   stop(): void {
@@ -22,19 +30,17 @@ export class GameLoop {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
+    if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
   }
 
   setSpeed(speed: number): void {
     this.speed = speed;
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = setInterval(() => {
-        this.onUpdate();
-      }, this.speed);
-    }
   }
 
   isRunning(): boolean {
-    return this.intervalId !== null;
+    return this.intervalId !== null || this.rafId !== null;
   }
 }

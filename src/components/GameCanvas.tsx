@@ -137,7 +137,7 @@ export const GameCanvas: React.FC = () => {
     }
 
     const foodPositions = currentFoods.map(f => f.position);
-    const foodsToRemove: number[] = [];
+    const foodsToRemove = new Set<number>();
     let killedAi = false;
 
     for (const ai of aiSnakesRef.current) {
@@ -158,11 +158,11 @@ export const GameCanvas: React.FC = () => {
       }
       const aiHead = { x: Math.round(ai.getHead().x), y: Math.round(ai.getHead().y) };
       for (let fi = 0; fi < currentFoods.length; fi++) {
-        if (foodsToRemove.includes(fi)) continue;
+        if (foodsToRemove.has(fi)) continue;
         if (Collision.checkFoodCollision(aiHead, currentFoods[fi].position)) {
           const foodConfig = FOOD_CONFIG[currentFoods[fi].type];
           for (let g = 0; g < foodConfig.growth; g++) ai.grow();
-          foodsToRemove.push(fi); break;
+          foodsToRemove.add(fi); break;
         }
       }
       const aiHeadPos = ai.getHead();
@@ -255,17 +255,17 @@ export const GameCanvas: React.FC = () => {
     let ateIndex = -1;
     let ateType = FoodType.STAR;
     for (let fi = 0; fi < currentFoods.length; fi++) {
-      if (foodsToRemove.includes(fi)) continue;
+      if (foodsToRemove.has(fi)) continue;
       if (Collision.checkFoodCollision(headGrid, currentFoods[fi].position)) {
         const foodConfig = FOOD_CONFIG[currentFoods[fi].type];
         for (let g = 0; g < foodConfig.growth; g++) { snakeRef.current.grow(); }
         ate = true; ateIndex = fi; ateType = currentFoods[fi].type; break;
       }
     }
-    if (ate) foodsToRemove.push(ateIndex);
+    if (ate) foodsToRemove.add(ateIndex);
 
-    if (foodsToRemove.length > 0) {
-      const newFoods = currentFoods.filter((_, i) => !foodsToRemove.includes(i));
+    if (foodsToRemove.size > 0) {
+      const newFoods = currentFoods.filter((_, i) => !foodsToRemove.has(i));
       dispatch(setFoods(newFoods));
       foodsRef.current = newFoods;
     }
@@ -322,7 +322,7 @@ export const GameCanvas: React.FC = () => {
       spawnFoodsRef.current();
     }
     gameLoopRef.current?.stop();
-    gameLoopRef.current = new GameLoop(() => handleGameUpdateRef.current(), 16);
+    gameLoopRef.current = new GameLoop(() => handleGameUpdateRef.current(), 33);
     gameLoopRef.current.start();
     return () => { gameLoopRef.current?.stop(); };
   }, [isPlaying, isPaused, dispatch, difficulty]);

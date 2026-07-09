@@ -5,9 +5,8 @@ import { Position } from '../store/gameSlice';
 
 function getViewportSize() {
   const { width, height } = Dimensions.get('window');
-  // Use the smaller dimension to ensure the game board fits
-  const availableSize = Math.min(width, height) - 32;
-  return Math.min(availableSize, VIEWPORT_CELLS * CELL_SIZE);
+  // Use the larger dimension for fullscreen
+  return Math.max(width, height);
 }
 
 function getCellPx() {
@@ -365,8 +364,8 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
   }, [aiSnakes, offsetX, offsetY, cellPx]);
 
   return (
-    <View>
-      <View style={[styles.board, { backgroundColor: colors.background, width: viewportSize, height: viewportSize }]}>
+    <View style={{ flex: 1 }}>
+      <View style={[styles.board, { backgroundColor: colors.background, flex: 1 }]}>
         <View style={[styles.gridOverlay, { borderColor: colors.snake + '15' }]}>
           {Array.from({ length: VIEWPORT_CELLS - 1 }).map((_, i) => (
             <View key={`h${i}`} style={[styles.gridLineH, { top: (i + 1) * cellPx }]} />
@@ -437,14 +436,8 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
 
 const styles = StyleSheet.create({
   board: {
-    borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
   },
   gridOverlay: {
     position: 'absolute',
@@ -452,8 +445,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderWidth: 1,
-    borderRadius: 16,
   },
   gridLineH: {
     position: 'absolute',

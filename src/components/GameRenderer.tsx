@@ -186,8 +186,8 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
   }, [fog, offsetX, offsetY, dims]);
 
   return (
-    <View style={styles.root}>
-      <View style={[styles.board, { backgroundColor: colors.background }]}>
+    <View style={[styles.root, { width: dims.w, height: dims.h }]}>
+      <View style={[styles.board, { backgroundColor: colors.background, width: dims.w, height: dims.h }]}>
         {/* Grid lines */}
         {Array.from({ length: viewCols }).map((_, i) => (
           <View key={`v${i}`} style={[styles.gridLineV, { left: (i + 1) * CELL_SIZE }]} />

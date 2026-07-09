@@ -11,9 +11,7 @@ const MINIMAP_SCALE = MINIMAP_SIZE / GRID_SIZE;
 
 interface GameRendererProps {
   snakeBody: Position[];
-  foodPosition: Position;
-  foodType: FoodType;
-  specialFood: { position: Position; type: FoodType } | null;
+  foods: { position: Position; type: FoodType }[];
   theme: Theme;
   aiSnakes?: { body: Position[]; color: string; name: string }[];
   traps?: { x: number; y: number; type: string; radius: number }[];
@@ -198,13 +196,12 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
 
 const Minimap: React.FC<{
   snakeBody: Position[];
-  foodPosition: Position;
-  specialFood: { position: Position; type: FoodType } | null;
+  foods: { position: Position; type: FoodType }[];
   offsetX: number;
   offsetY: number;
   colors: typeof THEME_COLORS.classic;
   aiSnakes?: { body: Position[]; color: string }[];
-}> = ({ snakeBody, foodPosition, specialFood, offsetX, offsetY, colors, aiSnakes = [] }) => {
+}> = ({ snakeBody, foods, offsetX, offsetY, colors, aiSnakes = [] }) => {
   const head = snakeBody[0];
   return (
     <View style={[styles.minimap, { backgroundColor: colors.background + 'CC' }]}>
@@ -219,27 +216,19 @@ const Minimap: React.FC<{
           },
         ]}
       />
-      <View
-        style={[
-          styles.minimapFood,
-          {
-            left: foodPosition.x * MINIMAP_SCALE - 1.5,
-            top: foodPosition.y * MINIMAP_SCALE - 1.5,
-          },
-        ]}
-      />
-      {specialFood && (
+      {foods.map((food, i) => (
         <View
+          key={i}
           style={[
             styles.minimapFood,
             {
-              left: specialFood.position.x * MINIMAP_SCALE - 1.5,
-              top: specialFood.position.y * MINIMAP_SCALE - 1.5,
-              backgroundColor: '#FFD700',
+              left: food.position.x * MINIMAP_SCALE - 1.5,
+              top: food.position.y * MINIMAP_SCALE - 1.5,
+              backgroundColor: food.type === 'STAR' ? '#FFD700' : food.type === 'APPLE' ? '#F44336' : '#00BCD4',
             },
           ]}
         />
-      )}
+      ))}
       {snakeBody.map((seg, i) => (
         <View
           key={i}
@@ -274,9 +263,7 @@ const Minimap: React.FC<{
 
 export const GameRenderer: React.FC<GameRendererProps> = ({
   snakeBody,
-  foodPosition,
-  foodType,
-  specialFood,
+  foods,
   theme,
   aiSnakes = [],
   traps = [],
@@ -319,8 +306,20 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
     });
   }, [snakeBody, offsetX, offsetY, colors.snake]);
 
-  const foodVisible = isInViewport(foodPosition.x, foodPosition.y, offsetX, offsetY);
-  const specialVisible = specialFood && isInViewport(specialFood.position.x, specialFood.position.y, offsetX, offsetY);
+  const foodElements = useMemo(() => {
+    return foods.map((food, i) => {
+      if (!isInViewport(food.position.x, food.position.y, offsetX, offsetY)) return null;
+      return (
+        <FoodItem
+          key={i}
+          x={food.position.x - offsetX}
+          y={food.position.y - offsetY}
+          type={food.type}
+          theme={theme}
+        />
+      );
+    }).filter(Boolean);
+  }, [foods, offsetX, offsetY, theme]);
 
   const aiSnakeElements = useMemo(() => {
     const segRadius = CELL_PX * 0.35;
@@ -360,22 +359,7 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
         </View>
         {snakeSegments}
         {aiSnakeElements}
-        {foodVisible && (
-          <FoodItem
-            x={foodPosition.x - offsetX}
-            y={foodPosition.y - offsetY}
-            type={foodType}
-            theme={theme}
-          />
-        )}
-        {specialVisible && (
-          <FoodItem
-            x={specialFood.position.x - offsetX}
-            y={specialFood.position.y - offsetY}
-            type={specialFood.type}
-            theme={theme}
-          />
-        )}
+        {foodElements}
         {/* Traps */}
         {traps.map((trap, i) => {
           if (!isInViewport(trap.x, trap.y, offsetX, offsetY)) return null;
@@ -427,8 +411,7 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
       </View>
       <Minimap
         snakeBody={snakeBody}
-        foodPosition={foodPosition}
-        specialFood={specialFood}
+        foods={foods}
         offsetX={offsetX}
         offsetY={offsetY}
         colors={colors}

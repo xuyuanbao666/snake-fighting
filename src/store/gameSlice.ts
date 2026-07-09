@@ -66,10 +66,7 @@ export interface GameState {
     isBoosted: boolean;
     isMagnetized: boolean;
   };
-  food: {
-    current: Food;
-    special: Food | null;
-  };
+  foods: Food[];
   score: number;
   highScore: number;
   isPlaying: boolean;
@@ -92,10 +89,13 @@ const initialState: GameState = {
     isBoosted: false,
     isMagnetized: false,
   },
-  food: {
-    current: { position: { x: 15, y: 15 }, type: FoodType.STAR },
-    special: null,
-  },
+  foods: [
+    { position: { x: 15, y: 15 }, type: FoodType.STAR },
+    { position: { x: 25, y: 10 }, type: FoodType.STAR },
+    { position: { x: 10, y: 25 }, type: FoodType.STAR },
+    { position: { x: 30, y: 30 }, type: FoodType.APPLE },
+    { position: { x: 5, y: 35 }, type: FoodType.DIAMOND },
+  ],
   score: 0,
   highScore: 0,
   isPlaying: false,
@@ -135,11 +135,14 @@ const gameSlice = createSlice({
       const tail = state.snake.body[state.snake.body.length - 1];
       state.snake.body.push({ ...tail });
     },
-    setFood(state, action: PayloadAction<Food>) {
-      state.food.current = action.payload;
+    setFoods(state, action: PayloadAction<Food[]>) {
+      state.foods = action.payload;
     },
-    setSpecialFood(state, action: PayloadAction<Food | null>) {
-      state.food.special = action.payload;
+    addFood(state, action: PayloadAction<Food>) {
+      state.foods.push(action.payload);
+    },
+    removeFood(state, action: PayloadAction<number>) {
+      state.foods.splice(action.payload, 1);
     },
     addScore(state, action: PayloadAction<number>) {
       state.score += action.payload;
@@ -190,8 +193,9 @@ export const {
   setDirectionAngle,
   moveSnake,
   growSnake,
-  setFood,
-  setSpecialFood,
+  setFoods,
+  addFood,
+  removeFood,
   addScore,
   incrementFoodEaten,
   setPlaying,

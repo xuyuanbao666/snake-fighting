@@ -87,7 +87,7 @@ export const GameCanvas: React.FC = () => {
     // Update AI snakes
     for (const ai of aiSnakesRef.current) {
       if (!ai.alive) continue;
-      ai.update(foods, snakeRef.current.getHead());
+      ai.update(foods, snakeRef.current.getHead(), snakeRef.current.body);
 
       const aiHead = { x: Math.round(ai.getHead().x), y: Math.round(ai.getHead().y) };
       for (const foodPos of foods) {

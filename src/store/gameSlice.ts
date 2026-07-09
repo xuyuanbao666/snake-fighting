@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Direction, FoodType, Theme } from '../utils/constants';
+import { FoodType, Theme } from '../utils/constants';
 
 export interface Position {
   x: number;
@@ -15,7 +15,7 @@ export interface Food {
 export interface GameState {
   snake: {
     body: Position[];
-    direction: Direction;
+    directionAngle: number;
     speed: number;
     isShielded: boolean;
     isBoosted: boolean;
@@ -40,7 +40,7 @@ const initialState: GameState = {
       { x: 9, y: 10 },
       { x: 8, y: 10 },
     ],
-    direction: Direction.RIGHT,
+    directionAngle: 0,
     speed: 150,
     isShielded: false,
     isBoosted: false,
@@ -62,16 +62,8 @@ const gameSlice = createSlice({
   name: 'game',
   initialState,
   reducers: {
-    setDirection(state, action: PayloadAction<Direction>) {
-      const opposite: Record<Direction, Direction> = {
-        UP: Direction.DOWN,
-        DOWN: Direction.UP,
-        LEFT: Direction.RIGHT,
-        RIGHT: Direction.LEFT,
-      };
-      if (action.payload !== opposite[state.snake.direction]) {
-        state.snake.direction = action.payload;
-      }
+    setDirectionAngle(state, action: PayloadAction<number>) {
+      state.snake.directionAngle = action.payload;
     },
     moveSnake(state) {
       const head = { ...state.snake.body[0] };
@@ -144,7 +136,7 @@ const gameSlice = createSlice({
 });
 
 export const {
-  setDirection,
+  setDirectionAngle,
   moveSnake,
   growSnake,
   setFood,

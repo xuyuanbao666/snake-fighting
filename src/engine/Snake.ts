@@ -1,8 +1,9 @@
-import { Direction, GRID_SIZE, Position } from '../utils/constants';
+import { GRID_SIZE, Position } from '../utils/constants';
 
 export class Snake {
   body: Position[];
-  direction: Direction;
+  velocityX: number;
+  velocityY: number;
 
   constructor() {
     this.body = [
@@ -10,29 +11,34 @@ export class Snake {
       { x: 9, y: 10 },
       { x: 8, y: 10 },
     ];
-    this.direction = Direction.RIGHT;
+    this.velocityX = 1;
+    this.velocityY = 0;
   }
 
-  setDirection(newDirection: Direction): void {
-    const opposites: Record<Direction, Direction> = {
-      [Direction.UP]: Direction.DOWN,
-      [Direction.DOWN]: Direction.UP,
-      [Direction.LEFT]: Direction.RIGHT,
-      [Direction.RIGHT]: Direction.LEFT,
-    };
-    if (newDirection !== opposites[this.direction]) {
-      this.direction = newDirection;
+  setDirectionFromAngle(angle: number): void {
+    const vx = Math.cos(angle);
+    const vy = Math.sin(angle);
+    const mag = Math.sqrt(vx * vx + vy * vy);
+    if (mag < 0.001) return;
+
+    const nvx = vx / mag;
+    const nvy = vy / mag;
+
+    if (Math.abs(nvx) > Math.abs(nvy)) {
+      this.velocityX = nvx > 0 ? 1 : -1;
+      this.velocityY = 0;
+    } else {
+      this.velocityX = 0;
+      this.velocityY = nvy > 0 ? 1 : -1;
     }
   }
 
   move(): void {
     const head = { ...this.body[0] };
-    switch (this.direction) {
-      case Direction.UP: head.y--; break;
-      case Direction.DOWN: head.y++; break;
-      case Direction.LEFT: head.x--; break;
-      case Direction.RIGHT: head.x++; break;
-    }
+    head.x += this.velocityX;
+    head.y += this.velocityY;
+    head.x = Math.round(head.x);
+    head.y = Math.round(head.y);
     this.body.unshift(head);
     this.body.pop();
   }

@@ -1,21 +1,22 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { View, PanResponder, StyleSheet } from 'react-native';
+import { View, PanResponder, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import {
-  setDirection,
+  setDirectionAngle,
   growSnake,
   setFood,
   addScore,
   incrementFoodEaten,
   setPlaying,
+  setPaused,
   updateSnakeBody,
 } from '../store/gameSlice';
 import { Snake } from '../engine/Snake';
 import { Food } from '../engine/Food';
 import { Collision } from '../engine/Collision';
 import { GameLoop } from '../engine/GameLoop';
-import { Direction, FoodType } from '../utils/constants';
+import { FoodType } from '../utils/constants';
 import { soundManager } from '../utils/sound';
 import { GameRenderer } from './GameRenderer';
 
@@ -29,14 +30,14 @@ export const GameCanvas: React.FC = () => {
     (state: RootState) => state.game,
   );
 
-  const directionRef = useRef(snake.direction);
+  const directionAngleRef = useRef(snake.directionAngle);
   const foodStateRef = useRef(food);
   const isShieldedRef = useRef(snake.isShielded);
   const speedRef = useRef(snake.speed);
 
   useEffect(() => {
-    directionRef.current = snake.direction;
-  }, [snake.direction]);
+    directionAngleRef.current = snake.directionAngle;
+  }, [snake.directionAngle]);
 
   useEffect(() => {
     foodStateRef.current = food;
@@ -65,7 +66,7 @@ export const GameCanvas: React.FC = () => {
   }, [generateNewFood]);
 
   const handleGameUpdate = useCallback(() => {
-    snakeRef.current.direction = directionRef.current;
+    snakeRef.current.setDirectionFromAngle(directionAngleRef.current);
     snakeRef.current.move();
 
     if (
@@ -121,7 +122,6 @@ export const GameCanvas: React.FC = () => {
     }
 
     const isNewGame = !wasPlaying;
-    const isResumeFromPause = wasPlaying && wasPaused;
 
     if (isNewGame) {
       snakeRef.current = new Snake();
@@ -145,19 +145,41 @@ export const GameCanvas: React.FC = () => {
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {},
       onPanResponderMove: (_, gestureState) => {
         const { dx, dy } = gestureState;
-        if (Math.abs(dx) > Math.abs(dy)) {
-          dispatch(setDirection(dx > 0 ? Direction.RIGHT : Direction.LEFT));
-        } else {
-          dispatch(setDirection(dy > 0 ? Direction.DOWN : Direction.UP));
-        }
+        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+        const angle = Math.atan2(dy, dx);
+        dispatch(setDirectionAngle(angle));
       },
     }),
   ).current;
 
+  const handlePauseToggle = useCallback(() => {
+    dispatch(setPaused(!isPaused));
+  }, [dispatch, isPaused]);
+
+  const handleBackToLobby = useCallback(() => {
+    gameLoopRef.current?.stop();
+    dispatch(setPlaying(false));
+    dispatch(setPaused(false));
+  }, [dispatch]);
+
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.iconButton} onPress={handleBackToLobby}>
+          <Text style={styles.iconText}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.scoreContainer}>
+          <Text style={styles.scoreLabel}>分数</Text>
+          <Text style={styles.scoreValue}>{snake.body.length - 3}</Text>
+        </View>
+        <TouchableOpacity style={styles.iconButton} onPress={handlePauseToggle}>
+          <Text style={styles.iconText}>{isPaused ? '▶' : '⏸'}</Text>
+        </TouchableOpacity>
+      </View>
+
       <GameRenderer
         snakeBody={snake.body}
         foodPosition={food.current.position}
@@ -165,14 +187,107 @@ export const GameCanvas: React.FC = () => {
         specialFood={food.special}
         theme={theme}
       />
+
+      {isPaused && (
+        <View style={styles.pauseOverlay}>
+          <View style={styles.pauseCard}>
+            <Text style={styles.pauseTitle}>暂停</Text>
+            <TouchableOpacity style={styles.resumeButton} onPress={handlePauseToggle}>
+              <Text style={styles.resumeText}>继续游戏</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.lobbyButton} onPress={handleBackToLobby}>
+              <Text style={styles.lobbyText}>返回大厅</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: '#E8F5E9',
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: 50,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(76, 175, 80, 0.8)',
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
+  },
+  iconText: {
+    fontSize: 20,
+    color: '#FFF',
+    fontWeight: 'bold',
+  },
+  scoreContainer: {
+    alignItems: 'center',
+  },
+  scoreLabel: {
+    fontSize: 12,
+    color: '#666',
+  },
+  scoreValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  pauseOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pauseCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    minWidth: 200,
+  },
+  pauseTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 24,
+  },
+  resumeButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginBottom: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  resumeText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  lobbyButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  lobbyText: {
+    color: '#666',
+    fontSize: 16,
   },
 });

@@ -1,15 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { setPlaying, resetGame, setTheme } from '../store/gameSlice';
 import { Theme, THEME_COLORS } from '../utils/constants';
+import { LeaderboardScreen } from './LeaderboardScreen';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export const MenuScreen: React.FC = () => {
   const dispatch = useDispatch();
   const { highScore, theme } = useSelector((state: RootState) => state.game);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+
+  if (showLeaderboard) {
+    return <LeaderboardScreen onClose={() => setShowLeaderboard(false)} />;
+  }
 
   const handleStart = () => {
     dispatch(resetGame());
@@ -52,9 +58,15 @@ export const MenuScreen: React.FC = () => {
         <Text style={styles.startText}>开始游戏</Text>
       </TouchableOpacity>
 
-      <View style={styles.scoreBox}>
-        <Text style={styles.scoreLabel}>最高分</Text>
-        <Text style={[styles.scoreValue, { color: THEME_COLORS[theme].snake }]}>{highScore}</Text>
+      <View style={styles.bottomRow}>
+        <View style={styles.scoreBox}>
+          <Text style={styles.scoreLabel}>最高分</Text>
+          <Text style={[styles.scoreValue, { color: THEME_COLORS[theme].snake }]}>{highScore}</Text>
+        </View>
+        <TouchableOpacity style={[styles.leaderboardBtn, { backgroundColor: THEME_COLORS[theme].snake }]} onPress={() => setShowLeaderboard(true)}>
+          <Text style={styles.leaderboardIcon}>🏆</Text>
+          <Text style={styles.leaderboardText}>排行榜</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -153,6 +165,33 @@ const styles = StyleSheet.create({
   scoreValue: {
     fontSize: 36,
     fontWeight: '800',
+    marginTop: 4,
+  },
+  bottomRow: {
+    marginTop: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  leaderboardBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  leaderboardIcon: {
+    fontSize: 24,
+  },
+  leaderboardText: {
+    fontSize: 12,
+    color: '#FFF',
+    fontWeight: '600',
     marginTop: 4,
   },
 });

@@ -15,6 +15,7 @@ interface GameRendererProps {
   foodType: FoodType;
   specialFood: { position: Position; type: FoodType } | null;
   theme: Theme;
+  aiSnakes?: { body: Position[]; color: string; name: string }[];
 }
 
 function getViewportOffset(headX: number, headY: number) {
@@ -113,7 +114,8 @@ const Minimap: React.FC<{
   offsetX: number;
   offsetY: number;
   colors: typeof THEME_COLORS.classic;
-}> = ({ snakeBody, foodPosition, specialFood, offsetX, offsetY, colors }) => {
+  aiSnakes?: { body: Position[]; color: string }[];
+}> = ({ snakeBody, foodPosition, specialFood, offsetX, offsetY, colors, aiSnakes = [] }) => {
   const head = snakeBody[0];
   return (
     <View style={[styles.minimap, { backgroundColor: colors.background + 'CC' }]}>
@@ -162,6 +164,21 @@ const Minimap: React.FC<{
           ]}
         />
       ))}
+      {aiSnakes.map((ai, aiIdx) =>
+        ai.body.map((seg, i) => (
+          <View
+            key={`ai-${aiIdx}-${i}`}
+            style={[
+              styles.minimapSnake,
+              {
+                left: seg.x * MINIMAP_SCALE - 1,
+                top: seg.y * MINIMAP_SCALE - 1,
+                backgroundColor: i === 0 ? ai.color : ai.color + 'AA',
+              },
+            ]}
+          />
+        ))
+      )}
     </View>
   );
 };
@@ -172,6 +189,7 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
   foodType,
   specialFood,
   theme,
+  aiSnakes = [],
 }) => {
   const colors = THEME_COLORS[theme];
   const head = snakeBody[0];
@@ -213,6 +231,31 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
   const foodVisible = isInViewport(foodPosition.x, foodPosition.y, offsetX, offsetY);
   const specialVisible = specialFood && isInViewport(specialFood.position.x, specialFood.position.y, offsetX, offsetY);
 
+  const aiSnakeElements = useMemo(() => {
+    const segRadius = CELL_PX * 0.35;
+    const elements: React.ReactNode[] = [];
+    for (const ai of aiSnakes) {
+      for (let i = 0; i < ai.body.length; i++) {
+        const seg = ai.body[i];
+        if (!isInViewport(seg.x, seg.y, offsetX, offsetY)) continue;
+        const viewX = seg.x - offsetX;
+        const viewY = seg.y - offsetY;
+        const alpha = Math.max(0.3, 1 - (i / ai.body.length) * 0.7);
+        const r = segRadius * (1 - i / ai.body.length * 0.3);
+        if (i === 0) {
+          elements.push(
+            <SnakeHead key={`ai-${ai.name}-head`} x={viewX} y={viewY} color={ai.color} />
+          );
+        } else {
+          elements.push(
+            <SnakeSegment key={`ai-${ai.name}-${i}`} x={viewX} y={viewY} color={ai.color} alpha={alpha} radius={r} />
+          );
+        }
+      }
+    }
+    return elements;
+  }, [aiSnakes, offsetX, offsetY]);
+
   return (
     <View>
       <View style={[styles.board, { backgroundColor: colors.background, width: VIEWPORT_SIZE, height: VIEWPORT_SIZE }]}>
@@ -225,6 +268,7 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
           ))}
         </View>
         {snakeSegments}
+        {aiSnakeElements}
         {foodVisible && (
           <FoodItem
             x={foodPosition.x - offsetX}
@@ -249,6 +293,7 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
         offsetX={offsetX}
         offsetY={offsetY}
         colors={colors}
+        aiSnakes={aiSnakes}
       />
     </View>
   );

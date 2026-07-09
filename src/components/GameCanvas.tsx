@@ -17,7 +17,7 @@ import {
   DIFFICULTY_CONFIG,
 } from '../store/gameSlice';
 import { Snake } from '../engine/Snake';
-import { AISnake, createAISnakes } from '../engine/AISnake';
+import { AISnake, createAISnakes, spawnSingleAI } from '../engine/AISnake';
 import { Food } from '../engine/Food';
 import { Collision } from '../engine/Collision';
 import { GameLoop } from '../engine/GameLoop';
@@ -61,6 +61,7 @@ export const GameCanvas: React.FC = () => {
   const [killFeed, setKillFeed] = useState<{ text: string; time: number }[]>([]);
   const activeBuffsRef = useRef<ActiveBuff[]>([]);
   const baseSpeedRef = useRef(0.15);
+  const aiConfigRef = useRef({ speed: 0.09, intelligence: 0.3 });
 
   // Floating joystick state
   const [joystickCenter, setJoystickCenter] = useState({ x: 0, y: 0 });
@@ -142,6 +143,14 @@ export const GameCanvas: React.FC = () => {
         if (nearTrap) { const dx = aiHead.x - nearTrap.position.x; const dy = aiHead.y - nearTrap.position.y; const dist = Math.sqrt(dx * dx + dy * dy) || 1; ai.velocityX = dx / dist; ai.velocityY = dy / dist; }
       }
       ai.update(foodPositions, snakeRef.current.getHead(), snakeRef.current.body);
+      // Endless mode: AI wraps around instead of dying on walls
+      if (gameMode === 'endless' && ai.alive) {
+        const aiHead = ai.body[0];
+        if (aiHead.x < 0) aiHead.x = GRID_SIZE - 1;
+        else if (aiHead.x >= GRID_SIZE) aiHead.x = 0;
+        if (aiHead.y < 0) aiHead.y = GRID_SIZE - 1;
+        else if (aiHead.y >= GRID_SIZE) aiHead.y = 0;
+      }
       const aiHead = { x: Math.round(ai.getHead().x), y: Math.round(ai.getHead().y) };
       for (let fi = 0; fi < currentFoods.length; fi++) {
         if (Collision.checkFoodCollision(aiHead, currentFoods[fi].position)) {
@@ -175,6 +184,16 @@ export const GameCanvas: React.FC = () => {
         activeBuffsRef.current.push({ type: buffType, duration: BUFF_CONFIG[buffType].duration, startTime: Date.now() });
         setActiveBuffs([...activeBuffsRef.current]);
         setKillFeed(prev => [...prev.slice(-4), { text: `${ai.name} 撞墙! ${BUFF_CONFIG[buffType].emoji} ${BUFF_CONFIG[buffType].label}`, time: Date.now() }]);
+      }
+    }
+
+    // Endless mode: respawn dead AI to maintain 10
+    if (gameMode === 'endless') {
+      const deadAIs = aiSnakesRef.current.filter(a => !a.alive);
+      for (const dead of deadAIs) {
+        const idx = aiSnakesRef.current.indexOf(dead);
+        const playerHead = snakeRef.current.getHead();
+        aiSnakesRef.current[idx] = spawnSingleAI(aiConfigRef.current, idx, playerHead.x, playerHead.y);
       }
     }
 
@@ -234,7 +253,7 @@ export const GameCanvas: React.FC = () => {
     if (ate || currentFoods.length < 5) spawnFoodsRef.current();
     setAiSnakesData(aiSnakesRef.current.filter(s => s.alive).map(s => ({ body: s.body.map(p => ({ ...p })), color: s.color, name: s.name })));
     updateRanking();
-  }, [dispatch, theme, updateRanking, difficulty]);
+  }, [dispatch, theme, updateRanking, difficulty, gameMode]);
 
   const handleGameUpdateRef = useRef(handleGameUpdate);
   useEffect(() => { handleGameUpdateRef.current = handleGameUpdate; }, [handleGameUpdate]);
@@ -254,7 +273,9 @@ export const GameCanvas: React.FC = () => {
       snakeRef.current = new Snake();
       snakeRef.current.speed = diffConfig.playerSpeed;
       baseSpeedRef.current = diffConfig.playerSpeed;
-      aiSnakesRef.current = createAISnakes(diffConfig.aiCount, { speed: diffConfig.aiSpeed, intelligence: diffConfig.aiIntelligence });
+      const aiCount = gameMode === 'endless' ? 10 : diffConfig.aiCount;
+      aiSnakesRef.current = createAISnakes(aiCount, { speed: diffConfig.aiSpeed, intelligence: diffConfig.aiIntelligence });
+      aiConfigRef.current = { speed: diffConfig.aiSpeed, intelligence: diffConfig.aiIntelligence };
       if (difficulty === 'impossible') { trapManagerRef.current = new TrapManager(); poisonFogRef.current = new PoisonFog(); }
       else { poisonFogRef.current = null; setTrapsData([]); setFogData(null); }
       activeBuffsRef.current = []; setActiveBuffs([]); setKillFeed([]);

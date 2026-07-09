@@ -247,3 +247,13 @@ export function createAISnakes(count: number, config: AIConfig): AISnake[] {
   }
   return snakes;
 }
+
+export function spawnSingleAI(config: AIConfig, index: number, avoidX: number, avoidY: number): AISnake {
+  const names = ['猎手', '拦截者', '围堵者', '抢食者', '暗影', '幽灵', '毒蛇', '闪电', '狂暴', '暗夜'];
+  let x: number, y: number;
+  do {
+    x = 5 + Math.random() * (GRID_SIZE - 10);
+    y = 5 + Math.random() * (GRID_SIZE - 10);
+  } while (Math.abs(x - avoidX) < 15 && Math.abs(y - avoidY) < 15);
+  return new AISnake(names[index % names.length], AI_COLORS[index % AI_COLORS.length], x, y, config);
+}

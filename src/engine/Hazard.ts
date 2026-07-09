@@ -1,5 +1,25 @@
 import { GRID_SIZE, Position } from '../utils/constants';
 
+export type BuffType = 'speed' | 'shield' | 'magnet' | 'doubleScore';
+
+export interface ActiveBuff {
+  type: BuffType;
+  duration: number; // frames remaining
+  startTime: number;
+}
+
+export const BUFF_CONFIG: Record<BuffType, { duration: number; label: string; emoji: string; color: string }> = {
+  speed: { duration: 300, label: '加速', emoji: '⚡', color: '#FFD700' },
+  shield: { duration: 300, label: '护盾', emoji: '🛡️', color: '#2196F3' },
+  magnet: { duration: 300, label: '磁铁', emoji: '🧲', color: '#E91E63' },
+  doubleScore: { duration: 300, label: '双倍分', emoji: '✖️2', color: '#FF9800' },
+};
+
+export function getRandomBuff(): BuffType {
+  const buffs: BuffType[] = ['speed', 'shield', 'magnet', 'doubleScore'];
+  return buffs[Math.floor(Math.random() * buffs.length)];
+}
+
 export class Trap {
   position: Position;
   type: 'spike' | 'poison' | 'slow';
@@ -45,9 +65,9 @@ export class PoisonFog {
     this.minY = 2;
     this.maxX = GRID_SIZE - 2;
     this.maxY = GRID_SIZE - 2;
-    this.shrinkRate = 0.003; // shrink per frame
+    this.shrinkRate = 0.001; // shrink per frame - slower
     this.tickCounter = 0;
-    this.warningZone = 3;
+    this.warningZone = 4;
   }
 
   update(): void {

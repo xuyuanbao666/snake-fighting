@@ -17,7 +17,7 @@ import { AISnake, createAISnakes } from '../engine/AISnake';
 import { Food } from '../engine/Food';
 import { Collision } from '../engine/Collision';
 import { GameLoop } from '../engine/GameLoop';
-import { TrapManager, PoisonFog } from '../engine/Hazard';
+import { TrapManager, PoisonFog, ActiveBuff, BuffType, BUFF_CONFIG, getRandomBuff } from '../engine/Hazard';
 import { FoodType, THEME_COLORS, GRID_SIZE } from '../utils/constants';
 import { soundManager } from '../utils/sound';
 import { Storage } from '../utils/storage';
@@ -47,6 +47,9 @@ export const GameCanvas: React.FC = () => {
   const [rankingData, setRankingData] = useState<{ name: string; length: number; color: string; isPlayer: boolean }[]>([]);
   const [trapsData, setTrapsData] = useState<{ x: number; y: number; type: string; radius: number }[]>([]);
   const [fogData, setFogData] = useState<{ minX: number; minY: number; maxX: number; maxY: number } | null>(null);
+  const [activeBuffs, setActiveBuffs] = useState<ActiveBuff[]>([]);
+  const [killFeed, setKillFeed] = useState<{ text: string; time: number }[]>([]);
+  const activeBuffsRef = useRef<ActiveBuff[]>([]);
 
   const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 });
   const [joystickActive, setJoystickActive] = useState(false);
@@ -173,6 +176,22 @@ export const GameCanvas: React.FC = () => {
 
       ai.update(foods, snakeRef.current.getHead(), snakeRef.current.body);
 
+      // Check if AI snake hits player's body → AI dies
+      const aiHeadPos = ai.getHead();
+      for (let pi = 1; pi < snakeRef.current.body.length; pi++) {
+        const seg = snakeRef.current.body[pi];
+        const dx = aiHeadPos.x - seg.x;
+        const dy = aiHeadPos.y - seg.y;
+        if (dx * dx + dy * dy < 0.8) {
+          ai.alive = false;
+          const buffType = getRandomBuff();
+          activeBuffsRef.current.push({ type: buffType, duration: BUFF_CONFIG[buffType].duration, startTime: Date.now() });
+          setActiveBuffs([...activeBuffsRef.current]);
+          setKillFeed(prev => [...prev.slice(-4), { text: `击杀 ${ai.name}! ${BUFF_CONFIG[buffType].emoji} ${BUFF_CONFIG[buffType].label}`, time: Date.now() }]);
+          break;
+        }
+      }
+
       const aiHead = { x: Math.round(ai.getHead().x), y: Math.round(ai.getHead().y) };
       for (const foodPos of foods) {
         if (Collision.checkFoodCollision(aiHead, foodPos)) {
@@ -182,10 +201,35 @@ export const GameCanvas: React.FC = () => {
           }
         }
       }
+
+      // Check if AI just died from wall collision → give player buff
+      if (ai.justDied) {
+        const buffType = getRandomBuff();
+        activeBuffsRef.current.push({ type: buffType, duration: BUFF_CONFIG[buffType].duration, startTime: Date.now() });
+        setActiveBuffs([...activeBuffsRef.current]);
+        setKillFeed(prev => [...prev.slice(-4), { text: `${ai.name} 撞墙! ${BUFF_CONFIG[buffType].emoji} ${BUFF_CONFIG[buffType].label}`, time: Date.now() }]);
+      }
     }
+
+    // Update active buffs
+    activeBuffsRef.current = activeBuffsRef.current
+      .map(b => ({ ...b, duration: b.duration - 1 }))
+      .filter(b => b.duration > 0);
+    setActiveBuffs([...activeBuffsRef.current]);
+
+    // Apply buff effects
+    const hasShield = activeBuffsRef.current.some(b => b.type === 'shield');
+    const hasSpeed = activeBuffsRef.current.some(b => b.type === 'speed');
+    const hasDoubleScore = activeBuffsRef.current.some(b => b.type === 'doubleScore');
+    isShieldedRef.current = hasShield;
 
     // Update player
     snakeRef.current.move();
+
+    // Apply speed buff
+    if (hasSpeed) {
+      snakeRef.current.speed = Math.max(0.08, snakeRef.current.speed - 0.02);
+    }
 
     if (snakeRef.current.checkWallCollision()) {
       if (!isShieldedRef.current) {
@@ -212,7 +256,9 @@ export const GameCanvas: React.FC = () => {
     if (Collision.checkFoodCollision(headGrid, currentFood.position)) {
       snakeRef.current.grow();
       dispatch(growSnake());
-      dispatch(addScore(currentFood.type === FoodType.STAR ? 50 : 10));
+      const baseScore = currentFood.type === FoodType.STAR ? 50 : 10;
+      const finalScore = hasDoubleScore ? baseScore * 2 : baseScore;
+      dispatch(addScore(finalScore));
       dispatch(incrementFoodEaten());
       soundManager.play(currentFood.type === FoodType.NORMAL ? 'eat' : 'special');
       generateNewFoodRef.current();
@@ -226,7 +272,7 @@ export const GameCanvas: React.FC = () => {
     );
 
     updateRanking();
-  }, [dispatch, theme, updateRanking]);
+  }, [dispatch, theme, updateRanking, difficulty]);
 
   const handleGameUpdateRef = useRef(handleGameUpdate);
   useEffect(() => {
@@ -272,6 +318,11 @@ export const GameCanvas: React.FC = () => {
         setTrapsData([]);
         setFogData(null);
       }
+
+      // Reset buffs
+      activeBuffsRef.current = [];
+      setActiveBuffs([]);
+      setKillFeed([]);
 
       const bodyCopy = snakeRef.current.body.map(p => ({ x: p.x, y: p.y }));
       dispatch(updateSnakeBody(bodyCopy));
@@ -358,6 +409,31 @@ export const GameCanvas: React.FC = () => {
           fog={fogData}
         />
         <RealtimeRanking entries={rankingData} />
+
+        {/* Active Buffs */}
+        {activeBuffs.length > 0 && (
+          <View style={styles.buffBar}>
+            {activeBuffs.map((buff, i) => {
+              const config = BUFF_CONFIG[buff.type];
+              const progress = buff.duration / config.duration;
+              return (
+                <View key={i} style={[styles.buffItem, { backgroundColor: config.color + '30', borderColor: config.color }]}>
+                  <Text style={styles.buffEmoji}>{config.emoji}</Text>
+                  <View style={[styles.buffProgress, { width: `${progress * 100}%`, backgroundColor: config.color }]} />
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Kill Feed */}
+        {killFeed.length > 0 && (
+          <View style={styles.killFeed}>
+            {killFeed.slice(-3).map((kill, i) => (
+              <Text key={kill.time} style={styles.killText}>{kill.text}</Text>
+            ))}
+          </View>
+        )}
       </View>
 
       <View style={styles.joystickArea} {...joystickPanResponder.panHandlers}>
@@ -438,4 +514,47 @@ const styles = StyleSheet.create({
   pauseBtnText: { color: '#FFF', fontSize: 18, fontWeight: '700' },
   lobbyBtn: { paddingVertical: 10 },
   lobbyBtnText: { fontSize: 15, fontWeight: '500' },
+  buffBar: {
+    position: 'absolute',
+    top: 110,
+    right: 8,
+    flexDirection: 'column',
+    gap: 6,
+  },
+  buffItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+    minWidth: 50,
+  },
+  buffEmoji: {
+    fontSize: 14,
+    marginRight: 4,
+  },
+  buffProgress: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    height: 2,
+    borderRadius: 1,
+  },
+  killFeed: {
+    position: 'absolute',
+    bottom: 160,
+    left: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  killText: {
+    fontSize: 12,
+    color: '#FFD700',
+    fontWeight: '600',
+    paddingVertical: 2,
+  },
 });

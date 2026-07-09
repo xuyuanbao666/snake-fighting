@@ -15,6 +15,7 @@ export class AISnake {
   color: string;
   name: string;
   alive: boolean;
+  justDied: boolean;
   private wanderAngle: number;
   private behaviorTimer: number;
   private behavior: 'chase' | 'intercept' | 'wander' | 'flee' = 'wander';
@@ -32,6 +33,7 @@ export class AISnake {
     this.color = color;
     this.name = name;
     this.alive = true;
+    this.justDied = false;
     this.wanderAngle = Math.random() * Math.PI * 2;
     this.behaviorTimer = 0;
     this.intelligence = config.intelligence;
@@ -39,6 +41,7 @@ export class AISnake {
 
   update(foods: Position[], playerHead: Position, playerBody: Position[]): void {
     if (!this.alive) return;
+    this.justDied = false;
 
     this.behaviorTimer--;
     if (this.behaviorTimer <= 0) {
@@ -204,6 +207,7 @@ export class AISnake {
     const head = this.body[0];
     if (head.x < 1 || head.x > GRID_SIZE - 1 || head.y < 1 || head.y > GRID_SIZE - 1) {
       this.alive = false;
+      this.justDied = true;
     }
   }
 

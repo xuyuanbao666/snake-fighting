@@ -18,6 +18,7 @@ import { Food } from '../engine/Food';
 import { Collision } from '../engine/Collision';
 import { GameLoop } from '../engine/GameLoop';
 import { CELL_SIZE, FoodType } from '../utils/constants';
+import { soundManager } from '../utils/sound';
 
 const { width: screenWidth } = Dimensions.get('window');
 const canvasSize = Math.floor(screenWidth / CELL_SIZE) * CELL_SIZE;
@@ -75,6 +76,7 @@ export const GameCanvas: React.FC = () => {
       if (!isShieldedRef.current) {
         gameLoopRef.current?.stop();
         dispatch(setPlaying(false));
+        soundManager.play('gameOver');
         return;
       }
     }
@@ -88,6 +90,7 @@ export const GameCanvas: React.FC = () => {
       snakeRef.current.grow();
       dispatch(addScore(currentFood.type === FoodType.STAR ? 50 : 10));
       dispatch(incrementFoodEaten());
+      soundManager.play(currentFood.type === FoodType.NORMAL ? 'eat' : 'special');
       generateNewFood();
     }
 

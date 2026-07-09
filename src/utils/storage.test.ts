@@ -30,13 +30,13 @@ describe('Storage', () => {
   });
 
   it('should save settings', async () => {
-    const settings = { soundEnabled: true, vibrationEnabled: false };
+    const settings = { soundEnabled: true, vibrationEnabled: false, controlType: 'swipe' as const };
     await Storage.saveSettings(settings);
     expect(AsyncStorage.setItem).toHaveBeenCalledWith('settings', JSON.stringify(settings));
   });
 
   it('should get settings', async () => {
-    const settings = { soundEnabled: true, vibrationEnabled: false };
+    const settings = { soundEnabled: true, vibrationEnabled: false, controlType: 'swipe' as const };
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(settings));
     const result = await Storage.getSettings();
     expect(result).toEqual(settings);

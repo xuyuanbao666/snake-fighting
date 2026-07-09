@@ -2,7 +2,7 @@ import { CELL_SIZE, THEME_COLORS, Theme, FoodType } from '../utils/constants';
 import { Position } from '../store/gameSlice';
 
 export class Renderer {
-  private ctx: CanvasRenderingContext2D;
+  private ctx: any;
   private canvas: any;
   private theme: Theme;
 

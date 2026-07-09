@@ -1,5 +1,5 @@
 import { Collision } from './Collision';
-import { Position, FoodType } from '../utils/constants';
+import { Position } from '../utils/constants';
 
 describe('Collision', () => {
   it('should detect food collision', () => {

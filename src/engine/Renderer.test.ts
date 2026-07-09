@@ -1,5 +1,5 @@
 import { Renderer } from './Renderer';
-import { FoodType, Theme } from '../utils/constants';
+import { FoodType } from '../utils/constants';
 
 describe('Renderer', () => {
   let canvas: any;

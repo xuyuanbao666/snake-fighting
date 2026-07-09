@@ -84,7 +84,8 @@ export const GameCanvas: React.FC = () => {
     dispatch(updateSnakeBody(snakeRef.current.body));
 
     const head = snakeRef.current.getHead();
-    const currentFood = foodStateRef.current;
+    const foodState = foodStateRef.current;
+    const currentFood = foodState.current;
     if (Collision.checkFoodCollision(head, currentFood.position)) {
       dispatch(growSnake());
       snakeRef.current.grow();
@@ -106,11 +107,11 @@ export const GameCanvas: React.FC = () => {
       currentFood.type,
     );
 
-    if (currentFood.special) {
+    if (foodState.special) {
       rendererRef.current.drawFood(
-        currentFood.special.position.x,
-        currentFood.special.position.y,
-        currentFood.special.type,
+        foodState.special.position.x,
+        foodState.special.position.y,
+        foodState.special.type,
       );
     }
   }, [dispatch, generateNewFood, theme]);

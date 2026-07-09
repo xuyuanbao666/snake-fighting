@@ -3,7 +3,8 @@ module.exports = {
     '^.+\\.tsx?$': ['babel-jest', { presets: ['module:@react-native/babel-preset'] }],
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|@react-native-community)/)',
+    'node_modules/(?!(react-native|@react-native|@react-native-community|react-redux|@reduxjs|react-native-sound|react-native-canvas|react-native-safe-area-context)/)',
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  setupFiles: ['./jest.setup.js'],
 };

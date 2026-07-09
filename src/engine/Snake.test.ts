@@ -1,5 +1,5 @@
 import { Snake } from './Snake';
-import { Direction, GRID_SIZE } from '../utils/constants';
+import { Direction } from '../utils/constants';
 
 describe('Snake', () => {
   let snake: Snake;

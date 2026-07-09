@@ -88,8 +88,8 @@ export const GameCanvas: React.FC = () => {
   useEffect(() => {
     if (isPlaying && !isPaused) {
       snakeRef.current = new Snake();
-      snakeBodyRef.current = snakeRef.current.body;
-      dispatch(updateSnakeBody(snakeRef.current.body));
+      snakeBodyRef.current = snakeRef.current.body.map(p => ({ ...p }));
+      dispatch(updateSnakeBody(snakeBodyRef.current));
       generateNewFood();
       gameLoopRef.current = new GameLoop(handleGameUpdate, snake.speed);
       gameLoopRef.current.start();

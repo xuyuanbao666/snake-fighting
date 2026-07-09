@@ -18,7 +18,7 @@ import { Food } from '../engine/Food';
 import { Collision } from '../engine/Collision';
 import { GameLoop } from '../engine/GameLoop';
 import { TrapManager, PoisonFog, ActiveBuff, BuffType, BUFF_CONFIG, getRandomBuff } from '../engine/Hazard';
-import { FoodType, THEME_COLORS, GRID_SIZE } from '../utils/constants';
+import { FoodType, FOOD_CONFIG, THEME_COLORS, GRID_SIZE } from '../utils/constants';
 import { soundManager } from '../utils/sound';
 import { Storage } from '../utils/storage';
 import { GameRenderer } from './GameRenderer';
@@ -199,13 +199,12 @@ export const GameCanvas: React.FC = () => {
       }
 
       const aiHead = { x: Math.round(ai.getHead().x), y: Math.round(ai.getHead().y) };
-      for (const foodPos of foods) {
-        if (Collision.checkFoodCollision(aiHead, foodPos)) {
+      if (Collision.checkFoodCollision(aiHead, currentFood.position)) {
+        const foodConfig = FOOD_CONFIG[currentFood.type];
+        for (let i = 0; i < foodConfig.growth; i++) {
           ai.grow();
-          if (foodPos.x === currentFood.position.x && foodPos.y === currentFood.position.y) {
-            generateNewFoodRef.current();
-          }
         }
+        generateNewFoodRef.current();
       }
 
       // Check if AI just died from wall collision → give player buff
@@ -263,13 +262,16 @@ export const GameCanvas: React.FC = () => {
     const head = snakeRef.current.getHead();
     const headGrid = { x: Math.round(head.x), y: Math.round(head.y) };
     if (Collision.checkFoodCollision(headGrid, currentFood.position)) {
-      snakeRef.current.grow();
-      dispatch(growSnake());
-      const baseScore = currentFood.type === FoodType.STAR ? 50 : 10;
-      const finalScore = hasDoubleScore ? baseScore * 2 : baseScore;
+      const foodConfig = FOOD_CONFIG[currentFood.type];
+      // Grow by food's growth amount
+      for (let i = 0; i < foodConfig.growth; i++) {
+        snakeRef.current.grow();
+        dispatch(growSnake());
+      }
+      const finalScore = hasDoubleScore ? foodConfig.points * 2 : foodConfig.points;
       dispatch(addScore(finalScore));
       dispatch(incrementFoodEaten());
-      soundManager.play(currentFood.type === FoodType.NORMAL ? 'eat' : 'special');
+      soundManager.play('eat');
       generateNewFoodRef.current();
     }
 

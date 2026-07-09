@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
-import { CELL_SIZE, GRID_SIZE, VIEWPORT_CELLS, THEME_COLORS, Theme, FoodType } from '../utils/constants';
+import { CELL_SIZE, GRID_SIZE, VIEWPORT_CELLS, THEME_COLORS, Theme, FoodType, FOOD_CONFIG } from '../utils/constants';
 import { Position } from '../store/gameSlice';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -77,16 +77,18 @@ const SnakeSegment: React.FC<{ x: number; y: number; color: string; alpha: numbe
 );
 
 const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }> = ({ x, y, type, theme }) => {
-  const colors = THEME_COLORS[theme];
-  let bgColor: string;
-  const size = CELL_PX * 0.7;
+  const config = FOOD_CONFIG[type];
+  let size = CELL_PX * 0.7;
+  let borderRadius = size / 2;
 
-  switch (type) {
-    case FoodType.STAR: bgColor = '#FFD700'; break;
-    case FoodType.ROCKET: bgColor = '#FF5722'; break;
-    case FoodType.SHIELD: bgColor = '#2196F3'; break;
-    case FoodType.MAGNET: bgColor = '#E91E63'; break;
-    default: bgColor = colors.food; break;
+  // Different sizes for different tiers
+  if (type === 'STAR') {
+    size = CELL_PX * 0.6;
+  } else if (type === 'APPLE') {
+    size = CELL_PX * 0.75;
+  } else if (type === 'DIAMOND') {
+    size = CELL_PX * 0.85;
+    borderRadius = CELL_PX * 0.15; // Diamond shape
   }
 
   return (
@@ -98,13 +100,13 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
           top: y * CELL_PX - size / 2,
           width: size,
           height: size,
-          backgroundColor: bgColor,
-          borderRadius: type === FoodType.STAR ? 4 : size / 2,
+          backgroundColor: config.color,
+          borderRadius,
         },
       ]}
     >
-      {type === FoodType.NORMAL && <View style={styles.foodLeaf} />}
-      {type === FoodType.STAR && <View style={styles.foodGlow} />}
+      {type === 'STAR' && <View style={styles.foodGlow} />}
+      {type === 'APPLE' && <View style={styles.foodLeaf} />}
     </View>
   );
 };

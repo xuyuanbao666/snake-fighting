@@ -20,11 +20,19 @@ export class Food {
   }
 
   getRandomType(score: number): FoodType {
-    const specialChance = Math.min(0.3, 0.05 + score / 1000);
-    if (Math.random() < specialChance) {
-      const types = [FoodType.STAR, FoodType.ROCKET, FoodType.SHIELD, FoodType.MAGNET];
-      return types[Math.floor(Math.random() * types.length)];
+    // Higher score = higher chance for better food
+    const rand = Math.random();
+    const scoreBonus = Math.min(0.3, score / 500);
+
+    // Diamond: 5% base + up to 15% from score
+    if (rand < 0.05 + scoreBonus * 0.5) {
+      return FoodType.DIAMOND;
     }
-    return FoodType.NORMAL;
+    // Apple: 15% base + up to 15% from score
+    if (rand < 0.20 + scoreBonus) {
+      return FoodType.APPLE;
+    }
+    // Star: rest
+    return FoodType.STAR;
   }
 }

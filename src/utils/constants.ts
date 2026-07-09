@@ -21,21 +21,17 @@ export const Direction = {
 export type Direction = typeof Direction[keyof typeof Direction];
 
 export const FoodType = {
-  NORMAL: 'NORMAL',
   STAR: 'STAR',
-  ROCKET: 'ROCKET',
-  SHIELD: 'SHIELD',
-  MAGNET: 'MAGNET',
+  APPLE: 'APPLE',
+  DIAMOND: 'DIAMOND',
 } as const;
 
 export type FoodType = typeof FoodType[keyof typeof FoodType];
 
-export const FOOD_POINTS: Record<FoodType, number> = {
-  NORMAL: 10,
-  STAR: 50,
-  ROCKET: 0,
-  SHIELD: 0,
-  MAGNET: 0,
+export const FOOD_CONFIG: Record<FoodType, { points: number; growth: number; color: string; label: string }> = {
+  STAR: { points: 10, growth: 1, color: '#FFD700', label: '小小星星' },
+  APPLE: { points: 30, growth: 3, color: '#F44336', label: '小苹果' },
+  DIAMOND: { points: 50, growth: 5, color: '#00BCD4', label: '大钻石' },
 };
 
 export const THEME_COLORS = {

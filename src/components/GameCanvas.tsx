@@ -274,8 +274,11 @@ export const GameCanvas: React.FC = () => {
       snakeRef.current.speed = diffConfig.playerSpeed;
       baseSpeedRef.current = diffConfig.playerSpeed;
       const aiCount = gameMode === 'endless' ? 10 : diffConfig.aiCount;
-      aiSnakesRef.current = createAISnakes(aiCount, { speed: diffConfig.aiSpeed, intelligence: diffConfig.aiIntelligence });
-      aiConfigRef.current = { speed: diffConfig.aiSpeed, intelligence: diffConfig.aiIntelligence };
+      const aiConfig = gameMode === 'endless'
+        ? { speed: diffConfig.aiSpeed * 1.3, intelligence: Math.min(1, diffConfig.aiIntelligence + 0.3) }
+        : { speed: diffConfig.aiSpeed, intelligence: diffConfig.aiIntelligence };
+      aiSnakesRef.current = createAISnakes(aiCount, aiConfig);
+      aiConfigRef.current = aiConfig;
       if (difficulty === 'impossible') { trapManagerRef.current = new TrapManager(); poisonFogRef.current = new PoisonFog(); }
       else { poisonFogRef.current = null; setTrapsData([]); setFogData(null); }
       activeBuffsRef.current = []; setActiveBuffs([]); setKillFeed([]);

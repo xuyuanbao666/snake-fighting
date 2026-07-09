@@ -5,6 +5,7 @@ const AI_COLORS = ['#FF6B6B', '#4ECDC4', '#A8E6CF', '#FFD93D', '#6C5CE7'];
 export interface AIConfig {
   speed: number;
   intelligence: number;
+  aggression?: number;
 }
 
 export class AISnake {
@@ -18,8 +19,9 @@ export class AISnake {
   justDied: boolean;
   private wanderAngle: number;
   private behaviorTimer: number;
-  private behavior: 'chase' | 'intercept' | 'wander' | 'flee' = 'wander';
+  private behavior: 'chase' | 'intercept' | 'wander' | 'flee' | 'attack' = 'wander';
   private intelligence: number;
+  private aggression: number;
 
   constructor(name: string, color: string, startX: number, startY: number, config: AIConfig) {
     this.body = [
@@ -37,6 +39,7 @@ export class AISnake {
     this.wanderAngle = Math.random() * Math.PI * 2;
     this.behaviorTimer = 0;
     this.intelligence = config.intelligence;
+    this.aggression = config.aggression ?? 0.3;
   }
 
   update(foods: Position[], playerHead: Position, playerBody: Position[]): void {
@@ -62,6 +65,12 @@ export class AISnake {
     // Intelligence gates behavior - low intelligence means more random wandering
     if (rand > this.intelligence) {
       this.behavior = 'wander';
+      return;
+    }
+
+    // Aggressive AI: high chance to directly attack player
+    if (rand < this.aggression && distToPlayer < 25) {
+      this.behavior = 'attack';
       return;
     }
 
@@ -94,7 +103,7 @@ export class AISnake {
       if (behaviorRand < 0.5) {
         this.behavior = 'intercept';
       } else if (behaviorRand < 0.8) {
-        this.behavior = 'chase';
+        this.behavior = 'attack';
       } else {
         this.behavior = 'wander';
       }
@@ -119,6 +128,11 @@ export class AISnake {
     const head = this.body[0];
 
     switch (this.behavior) {
+      case 'attack': {
+        this.moveTowards(playerHead);
+        break;
+      }
+
       case 'chase': {
         // Find nearest food
         let nearestFood: Position | null = null;
@@ -243,7 +257,8 @@ export function createAISnakes(count: number, config: AIConfig): AISnake[] {
     const dist = 18;
     const x = GRID_SIZE / 2 + Math.cos(angle) * dist;
     const y = GRID_SIZE / 2 + Math.sin(angle) * dist;
-    snakes.push(new AISnake(names[i] || `AI${i}`, AI_COLORS[i % AI_COLORS.length], x, y, config));
+    const aggression = i < 3 ? 0.6 + Math.random() * 0.3 : 0.2 + Math.random() * 0.3;
+    snakes.push(new AISnake(names[i] || `AI${i}`, AI_COLORS[i % AI_COLORS.length], x, y, { ...config, aggression }));
   }
   return snakes;
 }
@@ -255,5 +270,6 @@ export function spawnSingleAI(config: AIConfig, index: number, avoidX: number, a
     x = 5 + Math.random() * (GRID_SIZE - 10);
     y = 5 + Math.random() * (GRID_SIZE - 10);
   } while (Math.abs(x - avoidX) < 15 && Math.abs(y - avoidY) < 15);
-  return new AISnake(names[index % names.length], AI_COLORS[index % AI_COLORS.length], x, y, config);
+  const aggression = index < 3 ? 0.6 + Math.random() * 0.3 : 0.2 + Math.random() * 0.3;
+  return new AISnake(names[index % names.length], AI_COLORS[index % AI_COLORS.length], x, y, { ...config, aggression });
 }

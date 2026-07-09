@@ -98,8 +98,13 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
   snakeBody, foods, theme, aiSnakes = [], traps = [], fog = null,
 }) => {
   const colors = THEME_COLORS[theme];
-  const head = snakeBody[0];
   const [dims, setDims] = useState({ w: screenWidth, h: screenHeight });
+
+  if (!snakeBody || snakeBody.length === 0) {
+    return <View style={[styles.root, { width: screenWidth, height: screenHeight, backgroundColor: THEME_COLORS[theme].background }]} />;
+  }
+
+  const head = snakeBody[0];
 
   useEffect(() => {
     const sub = Dimensions.addEventListener('change', ({ window }) => setDims({ w: window.width, h: window.height }));

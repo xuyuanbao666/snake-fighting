@@ -1,9 +1,24 @@
 import React from 'react';
 import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Provider } from 'react-redux';
-import { store } from './src/store';
+import { Provider, useSelector } from 'react-redux';
+import { store, RootState } from './src/store';
 import { GameCanvas } from './src/components/GameCanvas';
+import { GameOver } from './src/components/GameOver';
+
+function AppContent() {
+  const { isPlaying, score } = useSelector((state: RootState) => state.game);
+
+  if (isPlaying) {
+    return <GameCanvas />;
+  }
+
+  if (score > 0) {
+    return <GameOver />;
+  }
+
+  return <GameCanvas />;
+}
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -13,7 +28,7 @@ function App() {
       <SafeAreaProvider>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <View style={styles.container}>
-          <GameCanvas />
+          <AppContent />
         </View>
       </SafeAreaProvider>
     </Provider>

@@ -82,24 +82,24 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
   let borderRadius = size / 2;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  // Different sizes for different tiers
   if (type === 'STAR') {
-    size = CELL_PX * 0.6;
+    size = CELL_PX * 0.7;
   } else if (type === 'APPLE') {
-    size = CELL_PX * 0.75;
+    size = CELL_PX * 0.8;
   } else if (type === 'DIAMOND') {
-    size = CELL_PX * 0.85;
+    size = CELL_PX * 0.9;
     borderRadius = CELL_PX * 0.15;
   }
 
-  // Star glow animation
+  // Star: bright pulsing glow
   useEffect(() => {
     if (type === 'STAR') {
       const animation = Animated.loop(
         Animated.sequence([
-          Animated.timing(glowAnim, { toValue: 1, duration: 800, useNativeDriver: false }),
-          Animated.timing(glowAnim, { toValue: 0, duration: 800, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 1, duration: 500, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 0, duration: 500, useNativeDriver: false }),
         ])
       );
       animation.start();
@@ -107,11 +107,25 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
     }
   }, [type]);
 
-  // Diamond rotation animation
+  // Apple: gentle pulse
+  useEffect(() => {
+    if (type === 'APPLE') {
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(scaleAnim, { toValue: 1.15, duration: 600, useNativeDriver: false }),
+          Animated.timing(scaleAnim, { toValue: 1, duration: 600, useNativeDriver: false }),
+        ])
+      );
+      animation.start();
+      return () => animation.stop();
+    }
+  }, [type]);
+
+  // Diamond: fast rotation + glow
   useEffect(() => {
     if (type === 'DIAMOND') {
       const animation = Animated.loop(
-        Animated.timing(rotateAnim, { toValue: 1, duration: 2000, useNativeDriver: false })
+        Animated.timing(rotateAnim, { toValue: 1, duration: 1200, useNativeDriver: false })
       );
       animation.start();
       return () => animation.stop();
@@ -120,7 +134,12 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
 
   const glowOpacity = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.3, 0.8],
+    outputRange: [0.4, 1],
+  });
+
+  const glowSize = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [size * 1.2, size * 1.8],
   });
 
   const rotate = rotateAnim.interpolate({
@@ -131,11 +150,19 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
   const animatedStyle: any = {};
   if (type === 'STAR') {
     animatedStyle.shadowOpacity = glowOpacity;
-    animatedStyle.shadowRadius = 8;
+    animatedStyle.shadowRadius = 16;
     animatedStyle.shadowColor = '#FFD700';
     animatedStyle.shadowOffset = { width: 0, height: 0 };
+    animatedStyle.elevation = 8;
   } else if (type === 'DIAMOND') {
     animatedStyle.transform = [{ rotate }];
+    animatedStyle.shadowOpacity = 0.8;
+    animatedStyle.shadowRadius = 12;
+    animatedStyle.shadowColor = '#00BCD4';
+    animatedStyle.shadowOffset = { width: 0, height: 0 };
+    animatedStyle.elevation = 8;
+  } else if (type === 'APPLE') {
+    animatedStyle.transform = [{ scale: scaleAnim }];
   }
 
   return (
@@ -155,7 +182,15 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
     >
       {type === 'APPLE' && <View style={styles.foodLeaf} />}
       {type === 'STAR' && (
-        <View style={[styles.starInner, { width: size * 0.4, height: size * 0.4 }]} />
+        <Animated.View style={[styles.starGlow, {
+          width: glowSize,
+          height: glowSize,
+          borderRadius: 100,
+          opacity: glowOpacity,
+        }]} />
+      )}
+      {type === 'DIAMOND' && (
+        <View style={styles.diamondShine} />
       )}
     </Animated.View>
   );
@@ -473,29 +508,37 @@ const styles = StyleSheet.create({
   },
   foodLeaf: {
     position: 'absolute',
-    top: -4,
-    right: -2,
-    width: 8,
-    height: 6,
-    borderRadius: 3,
+    top: -6,
+    right: -3,
+    width: 12,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#4CAF50',
     transform: [{ rotate: '30deg' }],
   },
   foodGlow: {
     position: 'absolute',
-    top: -4,
-    left: -4,
-    right: -4,
-    bottom: -4,
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
     borderRadius: 100,
-    backgroundColor: 'rgba(255, 215, 0, 0.3)',
+    backgroundColor: 'rgba(255, 215, 0, 0.4)',
   },
-  starInner: {
+  starGlow: {
     position: 'absolute',
-    borderRadius: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
     alignSelf: 'center',
-    marginTop: '30%',
+    marginTop: -4,
+    backgroundColor: 'rgba(255, 215, 0, 0.5)',
+  },
+  diamondShine: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
   },
   minimap: {
     position: 'absolute',

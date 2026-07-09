@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { View, PanResponder, Dimensions, StyleSheet } from 'react-native';
+import { View, PanResponder, StyleSheet } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import {
@@ -15,7 +15,7 @@ import { Snake } from '../engine/Snake';
 import { Food } from '../engine/Food';
 import { Collision } from '../engine/Collision';
 import { GameLoop } from '../engine/GameLoop';
-import { CELL_SIZE, GRID_SIZE, FoodType } from '../utils/constants';
+import { FoodType } from '../utils/constants';
 import { soundManager } from '../utils/sound';
 import { GameRenderer } from './GameRenderer';
 
@@ -32,7 +32,6 @@ export const GameCanvas: React.FC = () => {
   const directionRef = useRef(snake.direction);
   const foodStateRef = useRef(food);
   const isShieldedRef = useRef(snake.isShielded);
-  const snakeBodyRef = useRef(snake.body);
 
   useEffect(() => {
     directionRef.current = snake.direction;
@@ -52,6 +51,11 @@ export const GameCanvas: React.FC = () => {
     dispatch(setFood({ position: newFoodPos, type: newFoodType }));
   }, [dispatch]);
 
+  const generateNewFoodRef = useRef(generateNewFood);
+  useEffect(() => {
+    generateNewFoodRef.current = generateNewFood;
+  }, [generateNewFood]);
+
   const handleGameUpdate = useCallback(() => {
     snakeRef.current.direction = directionRef.current;
     snakeRef.current.move();
@@ -69,35 +73,55 @@ export const GameCanvas: React.FC = () => {
     }
 
     const bodyCopy = snakeRef.current.body.map(p => ({ ...p }));
-    snakeBodyRef.current = bodyCopy;
     dispatch(updateSnakeBody(bodyCopy));
 
     const head = snakeRef.current.getHead();
     const foodState = foodStateRef.current;
     const currentFood = foodState.current;
     if (Collision.checkFoodCollision(head, currentFood.position)) {
-      dispatch(growSnake());
       snakeRef.current.grow();
+      dispatch(growSnake());
       dispatch(addScore(currentFood.type === FoodType.STAR ? 50 : 10));
       dispatch(incrementFoodEaten());
       soundManager.play(currentFood.type === FoodType.NORMAL ? 'eat' : 'special');
-      generateNewFood();
+      generateNewFoodRef.current();
     }
-  }, [dispatch, generateNewFood]);
+  }, [dispatch]);
+
+  const handleGameUpdateRef = useRef(handleGameUpdate);
+  useEffect(() => {
+    handleGameUpdateRef.current = handleGameUpdate;
+  }, [handleGameUpdate]);
+
+  const prevIsPlaying = useRef(false);
 
   useEffect(() => {
     if (isPlaying && !isPaused) {
-      snakeRef.current = new Snake();
-      snakeBodyRef.current = snakeRef.current.body.map(p => ({ ...p }));
-      dispatch(updateSnakeBody(snakeBodyRef.current));
-      generateNewFood();
-      gameLoopRef.current = new GameLoop(handleGameUpdate, snake.speed);
+      const isNewGame = !prevIsPlaying.current;
+      prevIsPlaying.current = true;
+
+      if (isNewGame) {
+        snakeRef.current = new Snake();
+        const bodyCopy = snakeRef.current.body.map(p => ({ ...p }));
+        dispatch(updateSnakeBody(bodyCopy));
+        generateNewFoodRef.current();
+      }
+
+      gameLoopRef.current?.stop();
+      gameLoopRef.current = new GameLoop(
+        () => handleGameUpdateRef.current(),
+        snake.speed,
+      );
       gameLoopRef.current.start();
+    } else {
+      prevIsPlaying.current = false;
+      gameLoopRef.current?.stop();
     }
+
     return () => {
       gameLoopRef.current?.stop();
     };
-  }, [isPlaying, isPaused, snake.speed, handleGameUpdate, dispatch, generateNewFood]);
+  }, [isPlaying, isPaused, snake.speed, dispatch]);
 
   const panResponder = useRef(
     PanResponder.create({

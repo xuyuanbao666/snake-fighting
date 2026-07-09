@@ -100,16 +100,16 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
   const colors = THEME_COLORS[theme];
   const [dims, setDims] = useState({ w: screenWidth, h: screenHeight });
 
-  if (!snakeBody || snakeBody.length === 0) {
-    return <View style={[styles.root, { width: screenWidth, height: screenHeight, backgroundColor: THEME_COLORS[theme].background }]} />;
-  }
-
-  const head = snakeBody[0];
-
   useEffect(() => {
     const sub = Dimensions.addEventListener('change', ({ window }) => setDims({ w: window.width, h: window.height }));
     return () => sub?.remove?.();
   }, []);
+
+  if (!snakeBody || snakeBody.length === 0) {
+    return <View style={[styles.root, { width: dims.w, height: dims.h, backgroundColor: colors.background }]} />;
+  }
+
+  const head = snakeBody[0];
 
   // Calculate viewport: center on snake head
   const viewW = dims.w;

@@ -483,10 +483,10 @@ const styles = StyleSheet.create({
   pauseBtnText: { color: '#FFF', fontSize: 18, fontWeight: '700' },
   lobbyBtn: { paddingVertical: 8 },
   lobbyBtnText: { fontSize: 15, color: '#999', fontWeight: '500' },
-  buffBar: { position: 'absolute', top: 100, right: 12, flexDirection: 'column', gap: 6 },
+  buffBar: { position: 'absolute', top: 190, right: 10, flexDirection: 'column', gap: 6 },
   buffItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, overflow: 'hidden', minWidth: 50 },
   buffEmoji: { fontSize: 14, marginRight: 4 },
   buffProgress: { position: 'absolute', bottom: 0, left: 0, height: 2, borderRadius: 1 },
-  killFeed: { position: 'absolute', bottom: 160, left: 12, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 },
+  killFeed: { position: 'absolute', bottom: 80, left: 12, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 },
   killText: { fontSize: 12, color: '#FFD700', fontWeight: '600', paddingVertical: 2 },
 });

@@ -68,8 +68,9 @@ export const GameCanvas: React.FC = () => {
       }
     }
 
-    snakeBodyRef.current = [...snakeRef.current.body];
-    dispatch(updateSnakeBody(snakeRef.current.body));
+    const bodyCopy = snakeRef.current.body.map(p => ({ ...p }));
+    snakeBodyRef.current = bodyCopy;
+    dispatch(updateSnakeBody(bodyCopy));
 
     const head = snakeRef.current.getHead();
     const foodState = foodStateRef.current;

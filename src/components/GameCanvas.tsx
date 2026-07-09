@@ -248,7 +248,6 @@ export const GameCanvas: React.FC = () => {
       }
     }
 
-    setSnakeBodyForRender(snakeRef.current.body.map(p => ({ x: p.x, y: p.y })));
     const head = snakeRef.current.getHead();
     const headGrid = { x: Math.round(head.x), y: Math.round(head.y) };
     let ate = false;
@@ -284,6 +283,7 @@ export const GameCanvas: React.FC = () => {
 
     frameCountRef.current++;
     if (frameCountRef.current % 3 === 0) {
+      setSnakeBodyForRender(snakeRef.current.body.map(p => ({ x: p.x, y: p.y })));
       setAiSnakesData(aiSnakesRef.current.filter(s => s.alive).map(s => ({ body: s.body.map(p => ({ ...p })), color: s.color, name: s.name })));
       updateRanking();
     }
@@ -322,7 +322,7 @@ export const GameCanvas: React.FC = () => {
       spawnFoodsRef.current();
     }
     gameLoopRef.current?.stop();
-    gameLoopRef.current = new GameLoop(() => handleGameUpdateRef.current(), 33);
+    gameLoopRef.current = new GameLoop(() => handleGameUpdateRef.current(), 16);
     gameLoopRef.current.start();
     return () => { gameLoopRef.current?.stop(); };
   }, [isPlaying, isPaused, dispatch, difficulty]);

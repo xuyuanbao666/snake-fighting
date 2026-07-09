@@ -73,6 +73,7 @@ export interface GameState {
   isPaused: boolean;
   theme: Theme;
   difficulty: Difficulty;
+  orientation: 'portrait' | 'landscape';
   foodEaten: number;
 }
 
@@ -102,6 +103,7 @@ const initialState: GameState = {
   isPaused: false,
   theme: 'classic',
   difficulty: 'easy' as Difficulty,
+  orientation: 'portrait' as const,
   foodEaten: 0,
 };
 
@@ -168,6 +170,9 @@ const gameSlice = createSlice({
     setDifficulty(state, action: PayloadAction<Difficulty>) {
       state.difficulty = action.payload;
     },
+    toggleOrientation(state) {
+      state.orientation = state.orientation === 'portrait' ? 'landscape' : 'portrait';
+    },
     setShielded(state, action: PayloadAction<boolean>) {
       state.snake.isShielded = action.payload;
     },
@@ -202,6 +207,7 @@ export const {
   setPaused,
   setTheme,
   setDifficulty,
+  toggleOrientation,
   setShielded,
   setBoosted,
   setMagnetized,

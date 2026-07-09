@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { setPlaying, resetGame, setTheme, setDifficulty, Difficulty, DIFFICULTY_CONFIG } from '../store/gameSlice';
+import { setPlaying, resetGame, setTheme, setDifficulty, toggleOrientation, Difficulty, DIFFICULTY_CONFIG } from '../store/gameSlice';
 import { Theme, THEME_COLORS } from '../utils/constants';
 import { LeaderboardScreen } from './LeaderboardScreen';
 
@@ -10,7 +10,7 @@ const { width: screenWidth } = Dimensions.get('window');
 
 export const MenuScreen: React.FC = () => {
   const dispatch = useDispatch();
-  const { highScore, theme, difficulty } = useSelector((state: RootState) => state.game);
+  const { highScore, theme, difficulty, orientation } = useSelector((state: RootState) => state.game);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   if (showLeaderboard) {
@@ -94,6 +94,13 @@ export const MenuScreen: React.FC = () => {
         <TouchableOpacity style={[styles.leaderboardBtn, { backgroundColor: THEME_COLORS[theme].snake }]} onPress={() => setShowLeaderboard(true)}>
           <Text style={styles.leaderboardIcon}>🏆</Text>
           <Text style={styles.leaderboardText}>排行榜</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.leaderboardBtn, { backgroundColor: '#666' }]}
+          onPress={() => dispatch(toggleOrientation())}
+        >
+          <Text style={styles.leaderboardIcon}>{orientation === 'portrait' ? '📱' : '📺'}</Text>
+          <Text style={styles.leaderboardText}>{orientation === 'portrait' ? '竖屏' : '横屏'}</Text>
         </TouchableOpacity>
       </View>
     </View>

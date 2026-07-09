@@ -1,9 +1,8 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { View, PanResponder, StyleSheet, TouchableOpacity, Text, Dimensions } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import {
-  setDirectionAngle,
   growSnake,
   setFood,
   addScore,
@@ -16,11 +15,14 @@ import { Snake } from '../engine/Snake';
 import { Food } from '../engine/Food';
 import { Collision } from '../engine/Collision';
 import { GameLoop } from '../engine/GameLoop';
-import { FoodType, THEME_COLORS } from '../utils/constants';
+import { FoodType, THEME_COLORS, GRID_SIZE } from '../utils/constants';
 import { soundManager } from '../utils/sound';
 import { GameRenderer } from './GameRenderer';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+const JOYSTICK_SIZE = 120;
+const JOYSTICK_KNOB_SIZE = 48;
 
 export const GameCanvas: React.FC = () => {
   const dispatch = useDispatch();
@@ -32,14 +34,12 @@ export const GameCanvas: React.FC = () => {
     (state: RootState) => state.game,
   );
 
-  const directionAngleRef = useRef(snake.directionAngle);
   const foodStateRef = useRef(food);
   const isShieldedRef = useRef(snake.isShielded);
-  const speedRef = useRef(snake.speed);
 
-  useEffect(() => {
-    directionAngleRef.current = snake.directionAngle;
-  }, [snake.directionAngle]);
+  const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 });
+  const [joystickActive, setJoystickActive] = useState(false);
+  const joystickCenterRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     foodStateRef.current = food;
@@ -49,15 +49,9 @@ export const GameCanvas: React.FC = () => {
     isShieldedRef.current = snake.isShielded;
   }, [snake.isShielded]);
 
-  useEffect(() => {
-    speedRef.current = snake.speed;
-    if (gameLoopRef.current?.isRunning()) {
-      gameLoopRef.current.setSpeed(snake.speed);
-    }
-  }, [snake.speed]);
-
   const generateNewFood = useCallback(() => {
-    const newFoodPos = foodRef.current.generate(snakeRef.current.body);
+    const snakeBody = snakeRef.current.body.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+    const newFoodPos = foodRef.current.generate(snakeBody);
     const newFoodType = foodRef.current.getRandomType(snakeRef.current.body.length * 10);
     dispatch(setFood({ position: newFoodPos, type: newFoodType }));
   }, [dispatch]);
@@ -68,7 +62,6 @@ export const GameCanvas: React.FC = () => {
   }, [generateNewFood]);
 
   const handleGameUpdate = useCallback(() => {
-    snakeRef.current.setDirectionFromAngle(directionAngleRef.current);
     snakeRef.current.move();
 
     if (
@@ -83,13 +76,14 @@ export const GameCanvas: React.FC = () => {
       }
     }
 
-    const bodyCopy = snakeRef.current.body.map(p => ({ ...p }));
+    const bodyCopy = snakeRef.current.body.map(p => ({ x: p.x, y: p.y }));
     dispatch(updateSnakeBody(bodyCopy));
 
     const head = snakeRef.current.getHead();
     const foodState = foodStateRef.current;
     const currentFood = foodState.current;
-    if (Collision.checkFoodCollision(head, currentFood.position)) {
+    const headGrid = { x: Math.round(head.x), y: Math.round(head.y) };
+    if (Collision.checkFoodCollision(headGrid, currentFood.position)) {
       snakeRef.current.grow();
       dispatch(growSnake());
       dispatch(addScore(currentFood.type === FoodType.STAR ? 50 : 10));
@@ -127,7 +121,7 @@ export const GameCanvas: React.FC = () => {
 
     if (isNewGame) {
       snakeRef.current = new Snake();
-      const bodyCopy = snakeRef.current.body.map(p => ({ ...p }));
+      const bodyCopy = snakeRef.current.body.map(p => ({ x: p.x, y: p.y }));
       dispatch(updateSnakeBody(bodyCopy));
       generateNewFoodRef.current();
     }
@@ -135,7 +129,7 @@ export const GameCanvas: React.FC = () => {
     gameLoopRef.current?.stop();
     gameLoopRef.current = new GameLoop(
       () => handleGameUpdateRef.current(),
-      speedRef.current,
+      16,
     );
     gameLoopRef.current.start();
 
@@ -144,15 +138,33 @@ export const GameCanvas: React.FC = () => {
     };
   }, [isPlaying, isPaused, dispatch]);
 
-  const panResponder = useRef(
+  const joystickPanResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {},
-      onPanResponderMove: (_, gestureState) => {
+      onPanResponderGrant: (evt) => {
+        const { pageX, pageY } = evt.nativeEvent;
+        joystickCenterRef.current = { x: pageX, y: pageY };
+        setJoystickActive(true);
+        setJoystickPos({ x: 0, y: 0 });
+      },
+      onPanResponderMove: (evt, gestureState) => {
         const { dx, dy } = gestureState;
-        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const maxDist = JOYSTICK_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2;
+        const clampedDist = Math.min(dist, maxDist);
         const angle = Math.atan2(dy, dx);
-        dispatch(setDirectionAngle(angle));
+        const clampedX = Math.cos(angle) * clampedDist;
+        const clampedY = Math.sin(angle) * clampedDist;
+        setJoystickPos({ x: clampedX, y: clampedY });
+
+        if (dist > 10) {
+          snakeRef.current.setDirectionFromAngle(angle);
+        }
+      },
+      onPanResponderRelease: () => {
+        setJoystickActive(false);
+        setJoystickPos({ x: 0, y: 0 });
       },
     }),
   ).current;
@@ -168,10 +180,10 @@ export const GameCanvas: React.FC = () => {
   }, [dispatch]);
 
   const colors = THEME_COLORS[theme];
-  const score = snake.body.length - 3;
+  const score = Math.max(0, snake.body.length - 5);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]} {...panResponder.panHandlers}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.topBar}>
         <TouchableOpacity style={[styles.iconBtn, { backgroundColor: colors.snake }]} onPress={handleBackToLobby}>
           <Text style={styles.iconBtnText}>✕</Text>
@@ -194,6 +206,23 @@ export const GameCanvas: React.FC = () => {
           specialFood={food.special}
           theme={theme}
         />
+      </View>
+
+      <View style={styles.joystickArea} {...joystickPanResponder.panHandlers}>
+        <View style={[styles.joystickBase, { opacity: joystickActive ? 0.8 : 0.4 }]}>
+          <View
+            style={[
+              styles.joystickKnob,
+              {
+                transform: [
+                  { translateX: joystickPos.x },
+                  { translateY: joystickPos.y },
+                ],
+                backgroundColor: colors.snake,
+              },
+            ]}
+          />
+        </View>
       </View>
 
       {isPaused && (
@@ -265,6 +294,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  joystickArea: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: JOYSTICK_SIZE + 20,
+  },
+  joystickBase: {
+    width: JOYSTICK_SIZE,
+    height: JOYSTICK_SIZE,
+    borderRadius: JOYSTICK_SIZE / 2,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joystickKnob: {
+    width: JOYSTICK_KNOB_SIZE,
+    height: JOYSTICK_KNOB_SIZE,
+    borderRadius: JOYSTICK_KNOB_SIZE / 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
   pauseOverlay: {
     position: 'absolute',
     top: 0,
@@ -278,7 +334,7 @@ const styles = StyleSheet.create({
   pauseCard: {
     borderRadius: 24,
     paddingVertical: 36,
-    paddingHorizontal: 32,
+    paddingHorizontal: 28,
     alignItems: 'center',
     width: screenWidth * 0.75,
     shadowColor: '#000',

@@ -50,6 +50,7 @@ export const GameCanvas: React.FC = () => {
   const [activeBuffs, setActiveBuffs] = useState<ActiveBuff[]>([]);
   const [killFeed, setKillFeed] = useState<{ text: string; time: number }[]>([]);
   const activeBuffsRef = useRef<ActiveBuff[]>([]);
+  const baseSpeedRef = useRef(0.15);
 
   const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 });
   const [joystickActive, setJoystickActive] = useState(false);
@@ -134,7 +135,13 @@ export const GameCanvas: React.FC = () => {
           soundManager.play('gameOver');
           return;
         } else if (hitTrap.type === 'slow') {
-          snakeRef.current.speed = Math.min(0.25, snakeRef.current.speed + 0.02);
+          baseSpeedRef.current = Math.min(0.25, baseSpeedRef.current + 0.02);
+        } else if (hitTrap.type === 'poison') {
+          // Poison shrinks the snake by 2 segments
+          if (snakeRef.current.body.length > 5) {
+            snakeRef.current.body.pop();
+            snakeRef.current.body.pop();
+          }
         }
       }
 
@@ -169,8 +176,7 @@ export const GameCanvas: React.FC = () => {
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
           ai.velocityX = dx / dist;
           ai.velocityY = dy / dist;
-          ai.move();
-          continue;
+          // Don't call ai.move() here - update() will handle it
         }
       }
 
@@ -221,15 +227,18 @@ export const GameCanvas: React.FC = () => {
     const hasShield = activeBuffsRef.current.some(b => b.type === 'shield');
     const hasSpeed = activeBuffsRef.current.some(b => b.type === 'speed');
     const hasDoubleScore = activeBuffsRef.current.some(b => b.type === 'doubleScore');
-    isShieldedRef.current = hasShield;
+    // Shield combines: Redux state OR buff
+    isShieldedRef.current = snake.isShielded || hasShield;
+
+    // Speed buff: increase speed, restore when expired
+    if (hasSpeed) {
+      snakeRef.current.speed = baseSpeedRef.current * 1.5;
+    } else {
+      snakeRef.current.speed = baseSpeedRef.current;
+    }
 
     // Update player
     snakeRef.current.move();
-
-    // Apply speed buff
-    if (hasSpeed) {
-      snakeRef.current.speed = Math.max(0.08, snakeRef.current.speed - 0.02);
-    }
 
     if (snakeRef.current.checkWallCollision()) {
       if (!isShieldedRef.current) {
@@ -304,6 +313,7 @@ export const GameCanvas: React.FC = () => {
       const diffConfig = DIFFICULTY_CONFIG[difficulty];
       snakeRef.current = new Snake();
       snakeRef.current.speed = diffConfig.playerSpeed;
+      baseSpeedRef.current = diffConfig.playerSpeed;
       aiSnakesRef.current = createAISnakes(diffConfig.aiCount, {
         speed: diffConfig.aiSpeed,
         intelligence: diffConfig.aiIntelligence,

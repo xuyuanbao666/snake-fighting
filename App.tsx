@@ -3,6 +3,7 @@ import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
 import { store } from './src/store';
+import { GameCanvas } from './src/components/GameCanvas';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -12,7 +13,7 @@ function App() {
       <SafeAreaProvider>
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
         <View style={styles.container}>
-          {/* Game content will be added in subsequent tasks */}
+          <GameCanvas />
         </View>
       </SafeAreaProvider>
     </Provider>

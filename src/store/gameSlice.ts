@@ -132,6 +132,9 @@ const gameSlice = createSlice({
     setMagnetized(state, action: PayloadAction<boolean>) {
       state.snake.isMagnetized = action.payload;
     },
+    updateSnakeBody(state, action: PayloadAction<Position[]>) {
+      state.snake.body = action.payload;
+    },
     resetGame(state) {
       return initialState;
     },
@@ -152,6 +155,7 @@ export const {
   setShielded,
   setBoosted,
   setMagnetized,
+  updateSnakeBody,
   resetGame,
 } = gameSlice.actions;
 

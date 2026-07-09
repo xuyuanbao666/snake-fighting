@@ -105,11 +105,7 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
     return () => sub?.remove?.();
   }, []);
 
-  if (!snakeBody || snakeBody.length === 0) {
-    return <View style={[styles.root, { width: dims.w, height: dims.h, backgroundColor: colors.background }]} />;
-  }
-
-  const head = snakeBody[0];
+  const head = snakeBody && snakeBody.length > 0 ? snakeBody[0] : { x: 50, y: 50 };
 
   // Calculate viewport: center on snake head
   const viewW = dims.w;
@@ -128,6 +124,7 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
     x >= offsetX - 2 && x <= offsetX + viewCols + 2 && y >= offsetY - 2 && y <= offsetY + viewRows + 2;
 
   const snakeSegments = useMemo(() => {
+    if (!snakeBody || snakeBody.length === 0) return null;
     const segR = CELL_SIZE * 0.4;
     return snakeBody.map((seg, i) => {
       if (!inView(seg.x, seg.y)) return null;
@@ -150,6 +147,7 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
     const segR = CELL_SIZE * 0.35;
     const els: React.ReactNode[] = [];
     for (const ai of aiSnakes) {
+      if (!ai.body || ai.body.length === 0) continue;
       for (let i = 0; i < ai.body.length; i++) {
         const s = ai.body[i];
         if (!inView(s.x, s.y)) continue;
@@ -185,10 +183,14 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
         {t > 0 && <View style={[styles.fog, { top: 0, left: 0, right: 0, height: t }]} />}
         {b > 0 && <View style={[styles.fog, { bottom: 0, left: 0, right: 0, height: b }]} />}
         {l > 0 && <View style={[styles.fog, { top: 0, left: 0, bottom: 0, width: l }]} />}
-        {r > 0 && <View style={[styles.fog, { top: 0, right: 0, bottom: 0, width: r }]} />}
+        {r > 0 && <View style={[styles.fog, { top: 0, right: 0, bottom: 0, width: l }]} />}
       </>
     );
   }, [fog, offsetX, offsetY, dims]);
+
+  if (!snakeBody || snakeBody.length === 0) {
+    return <View style={[styles.root, { width: dims.w, height: dims.h, backgroundColor: colors.background }]} />;
+  }
 
   return (
     <View style={[styles.root, { width: dims.w, height: dims.h }]}>

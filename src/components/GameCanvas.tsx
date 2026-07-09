@@ -32,6 +32,7 @@ export const GameCanvas: React.FC = () => {
   const directionRef = useRef(snake.direction);
   const foodStateRef = useRef(food);
   const isShieldedRef = useRef(snake.isShielded);
+  const speedRef = useRef(snake.speed);
 
   useEffect(() => {
     directionRef.current = snake.direction;
@@ -44,6 +45,13 @@ export const GameCanvas: React.FC = () => {
   useEffect(() => {
     isShieldedRef.current = snake.isShielded;
   }, [snake.isShielded]);
+
+  useEffect(() => {
+    speedRef.current = snake.speed;
+    if (gameLoopRef.current?.isRunning()) {
+      gameLoopRef.current.setSpeed(snake.speed);
+    }
+  }, [snake.speed]);
 
   const generateNewFood = useCallback(() => {
     const newFoodPos = foodRef.current.generate(snakeRef.current.body);
@@ -94,34 +102,45 @@ export const GameCanvas: React.FC = () => {
   }, [handleGameUpdate]);
 
   const prevIsPlaying = useRef(false);
+  const prevIsPaused = useRef(false);
 
   useEffect(() => {
-    if (isPlaying && !isPaused) {
-      const isNewGame = !prevIsPlaying.current;
-      prevIsPlaying.current = true;
+    const wasPlaying = prevIsPlaying.current;
+    const wasPaused = prevIsPaused.current;
+    prevIsPlaying.current = isPlaying;
+    prevIsPaused.current = isPaused;
 
-      if (isNewGame) {
-        snakeRef.current = new Snake();
-        const bodyCopy = snakeRef.current.body.map(p => ({ ...p }));
-        dispatch(updateSnakeBody(bodyCopy));
-        generateNewFoodRef.current();
-      }
-
+    if (!isPlaying) {
       gameLoopRef.current?.stop();
-      gameLoopRef.current = new GameLoop(
-        () => handleGameUpdateRef.current(),
-        snake.speed,
-      );
-      gameLoopRef.current.start();
-    } else {
-      prevIsPlaying.current = false;
-      gameLoopRef.current?.stop();
+      return;
     }
+
+    if (isPaused) {
+      gameLoopRef.current?.stop();
+      return;
+    }
+
+    const isNewGame = !wasPlaying;
+    const isResumeFromPause = wasPlaying && wasPaused;
+
+    if (isNewGame) {
+      snakeRef.current = new Snake();
+      const bodyCopy = snakeRef.current.body.map(p => ({ ...p }));
+      dispatch(updateSnakeBody(bodyCopy));
+      generateNewFoodRef.current();
+    }
+
+    gameLoopRef.current?.stop();
+    gameLoopRef.current = new GameLoop(
+      () => handleGameUpdateRef.current(),
+      speedRef.current,
+    );
+    gameLoopRef.current.start();
 
     return () => {
       gameLoopRef.current?.stop();
     };
-  }, [isPlaying, isPaused, snake.speed, dispatch]);
+  }, [isPlaying, isPaused, dispatch]);
 
   const panResponder = useRef(
     PanResponder.create({

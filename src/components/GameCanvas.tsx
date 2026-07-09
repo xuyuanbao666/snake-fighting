@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { View, PanResponder, Dimensions, StyleSheet } from 'react-native';
-import Canvas from 'react-native-canvas';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import {
@@ -12,21 +11,16 @@ import {
   setPlaying,
   updateSnakeBody,
 } from '../store/gameSlice';
-import { Renderer } from '../engine/Renderer';
 import { Snake } from '../engine/Snake';
 import { Food } from '../engine/Food';
 import { Collision } from '../engine/Collision';
 import { GameLoop } from '../engine/GameLoop';
-import { CELL_SIZE, FoodType } from '../utils/constants';
+import { CELL_SIZE, GRID_SIZE, FoodType } from '../utils/constants';
 import { soundManager } from '../utils/sound';
-
-const { width: screenWidth } = Dimensions.get('window');
-const canvasSize = Math.floor(screenWidth / CELL_SIZE) * CELL_SIZE;
+import { GameRenderer } from './GameRenderer';
 
 export const GameCanvas: React.FC = () => {
   const dispatch = useDispatch();
-  const canvasRef = useRef<Canvas | null>(null);
-  const rendererRef = useRef<Renderer | null>(null);
   const snakeRef = useRef<Snake>(new Snake());
   const foodRef = useRef<Food>(new Food());
   const gameLoopRef = useRef<GameLoop | null>(null);
@@ -38,6 +32,7 @@ export const GameCanvas: React.FC = () => {
   const directionRef = useRef(snake.direction);
   const foodStateRef = useRef(food);
   const isShieldedRef = useRef(snake.isShielded);
+  const snakeBodyRef = useRef(snake.body);
 
   useEffect(() => {
     directionRef.current = snake.direction;
@@ -51,12 +46,6 @@ export const GameCanvas: React.FC = () => {
     isShieldedRef.current = snake.isShielded;
   }, [snake.isShielded]);
 
-  useEffect(() => {
-    if (canvasRef.current) {
-      rendererRef.current = new Renderer(canvasRef.current, theme);
-    }
-  }, [theme]);
-
   const generateNewFood = useCallback(() => {
     const newFoodPos = foodRef.current.generate(snakeRef.current.body);
     const newFoodType = foodRef.current.getRandomType(snakeRef.current.body.length * 10);
@@ -64,8 +53,6 @@ export const GameCanvas: React.FC = () => {
   }, [dispatch]);
 
   const handleGameUpdate = useCallback(() => {
-    if (!rendererRef.current) return;
-
     snakeRef.current.direction = directionRef.current;
     snakeRef.current.move();
 
@@ -81,6 +68,7 @@ export const GameCanvas: React.FC = () => {
       }
     }
 
+    snakeBodyRef.current = [...snakeRef.current.body];
     dispatch(updateSnakeBody(snakeRef.current.body));
 
     const head = snakeRef.current.getHead();
@@ -94,37 +82,21 @@ export const GameCanvas: React.FC = () => {
       soundManager.play(currentFood.type === FoodType.NORMAL ? 'eat' : 'special');
       generateNewFood();
     }
-
-    rendererRef.current.clear();
-    rendererRef.current.drawSnakeHead(head.x, head.y, theme);
-    rendererRef.current.drawSnakeBody(
-      snakeRef.current.body.slice(1),
-      theme,
-    );
-    rendererRef.current.drawFood(
-      currentFood.position.x,
-      currentFood.position.y,
-      currentFood.type,
-    );
-
-    if (foodState.special) {
-      rendererRef.current.drawFood(
-        foodState.special.position.x,
-        foodState.special.position.y,
-        foodState.special.type,
-      );
-    }
-  }, [dispatch, generateNewFood, theme]);
+  }, [dispatch, generateNewFood]);
 
   useEffect(() => {
     if (isPlaying && !isPaused) {
+      snakeRef.current = new Snake();
+      snakeBodyRef.current = snakeRef.current.body;
+      dispatch(updateSnakeBody(snakeRef.current.body));
+      generateNewFood();
       gameLoopRef.current = new GameLoop(handleGameUpdate, snake.speed);
       gameLoopRef.current.start();
     }
     return () => {
       gameLoopRef.current?.stop();
     };
-  }, [isPlaying, isPaused, snake.speed, handleGameUpdate]);
+  }, [isPlaying, isPaused, snake.speed, handleGameUpdate, dispatch, generateNewFood]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -140,21 +112,14 @@ export const GameCanvas: React.FC = () => {
     }),
   ).current;
 
-  const handleCanvasInit = useCallback(
-    (canvas: Canvas) => {
-      canvas.width = canvasSize;
-      canvas.height = canvasSize;
-      canvasRef.current = canvas;
-      rendererRef.current = new Renderer(canvas, theme);
-    },
-    [theme],
-  );
-
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
-      <Canvas
-        ref={handleCanvasInit}
-        style={{ width: canvasSize, height: canvasSize }}
+      <GameRenderer
+        snakeBody={snake.body}
+        foodPosition={food.current.position}
+        foodType={food.current.type}
+        specialFood={food.special}
+        theme={theme}
       />
     </View>
   );
@@ -164,5 +129,6 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
+    flex: 1,
   },
 });

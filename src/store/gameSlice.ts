@@ -2,47 +2,59 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { FoodType, Theme } from '../utils/constants';
 
 export type Difficulty = 'easy' | 'hard' | 'hell' | 'impossible';
+export type GameMode = 'classic' | 'endless';
 
 export const DIFFICULTY_CONFIG = {
   easy: {
     label: '简单',
     emoji: '😊',
-    aiCount: 2,
+    aiCount: 3,
     aiSpeed: 0.09,
     aiIntelligence: 0.3,
     playerSpeed: 0.15,
-    foodSpecialChance: 0.15,
     description: 'AI 反应慢，数量少',
   },
   hard: {
     label: '困难',
     emoji: '😤',
-    aiCount: 3,
+    aiCount: 5,
     aiSpeed: 0.13,
     aiIntelligence: 0.6,
     playerSpeed: 0.15,
-    foodSpecialChance: 0.1,
     description: 'AI 更快更聪明',
   },
   hell: {
     label: '地狱',
     emoji: '💀',
-    aiCount: 4,
+    aiCount: 7,
     aiSpeed: 0.16,
     aiIntelligence: 0.8,
     playerSpeed: 0.15,
-    foodSpecialChance: 0.05,
     description: 'AI 极速围堵',
   },
   impossible: {
     label: '虾连奶',
     emoji: '🦐',
-    aiCount: 5,
+    aiCount: 10,
     aiSpeed: 0.19,
     aiIntelligence: 0.95,
     playerSpeed: 0.14,
-    foodSpecialChance: 0.03,
     description: '不可能通关',
+  },
+} as const;
+
+export const GAME_MODE_CONFIG = {
+  classic: {
+    label: '经典模式',
+    emoji: '🎮',
+    description: '撞墙即死，吃食物得分',
+    wallDeath: true,
+  },
+  endless: {
+    label: '无尽模式',
+    emoji: '♾️',
+    description: '穿墙不死，难度递增',
+    wallDeath: false,
   },
 } as const;
 
@@ -73,6 +85,7 @@ export interface GameState {
   isPaused: boolean;
   theme: Theme;
   difficulty: Difficulty;
+  gameMode: GameMode;
   orientation: 'portrait' | 'landscape';
   foodEaten: number;
 }
@@ -80,9 +93,9 @@ export interface GameState {
 const initialState: GameState = {
   snake: {
     body: [
-      { x: 10, y: 10 },
-      { x: 9, y: 10 },
-      { x: 8, y: 10 },
+      { x: 50, y: 50 },
+      { x: 49, y: 50 },
+      { x: 48, y: 50 },
     ],
     directionAngle: 0,
     speed: 150,
@@ -90,19 +103,14 @@ const initialState: GameState = {
     isBoosted: false,
     isMagnetized: false,
   },
-  foods: [
-    { position: { x: 15, y: 15 }, type: FoodType.STAR },
-    { position: { x: 25, y: 10 }, type: FoodType.STAR },
-    { position: { x: 10, y: 25 }, type: FoodType.STAR },
-    { position: { x: 30, y: 30 }, type: FoodType.APPLE },
-    { position: { x: 5, y: 35 }, type: FoodType.DIAMOND },
-  ],
+  foods: [],
   score: 0,
   highScore: 0,
   isPlaying: false,
   isPaused: false,
   theme: 'classic',
-  difficulty: 'easy' as Difficulty,
+  difficulty: 'easy',
+  gameMode: 'classic',
   orientation: 'portrait' as const,
   foodEaten: 0,
 };
@@ -117,18 +125,10 @@ const gameSlice = createSlice({
     moveSnake(state) {
       const head = { ...state.snake.body[0] };
       switch (state.snake.direction) {
-        case Direction.UP:
-          head.y--;
-          break;
-        case Direction.DOWN:
-          head.y++;
-          break;
-        case Direction.LEFT:
-          head.x--;
-          break;
-        case Direction.RIGHT:
-          head.x++;
-          break;
+        case Direction.UP: head.y--; break;
+        case Direction.DOWN: head.y++; break;
+        case Direction.LEFT: head.x--; break;
+        case Direction.RIGHT: head.x++; break;
       }
       state.snake.body.unshift(head);
       state.snake.body.pop();
@@ -154,9 +154,6 @@ const gameSlice = createSlice({
     },
     incrementFoodEaten(state) {
       state.foodEaten++;
-      if (state.foodEaten % 5 === 0) {
-        state.snake.speed = Math.max(50, state.snake.speed - 10);
-      }
     },
     setPlaying(state, action: PayloadAction<boolean>) {
       state.isPlaying = action.payload;
@@ -169,6 +166,9 @@ const gameSlice = createSlice({
     },
     setDifficulty(state, action: PayloadAction<Difficulty>) {
       state.difficulty = action.payload;
+    },
+    setGameMode(state, action: PayloadAction<GameMode>) {
+      state.gameMode = action.payload;
     },
     toggleOrientation(state) {
       state.orientation = state.orientation === 'portrait' ? 'landscape' : 'portrait';
@@ -189,7 +189,8 @@ const gameSlice = createSlice({
       const highScore = state.highScore;
       const theme = state.theme;
       const difficulty = state.difficulty;
-      return { ...initialState, highScore, theme, difficulty };
+      const gameMode = state.gameMode;
+      return { ...initialState, highScore, theme, difficulty, gameMode };
     },
   },
 });
@@ -207,6 +208,7 @@ export const {
   setPaused,
   setTheme,
   setDifficulty,
+  setGameMode,
   toggleOrientation,
   setShielded,
   setBoosted,

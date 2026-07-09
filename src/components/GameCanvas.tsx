@@ -47,7 +47,7 @@ export const GameCanvas: React.FC = () => {
   const trapManagerRef = useRef<TrapManager>(new TrapManager());
   const poisonFogRef = useRef<PoisonFog | null>(null);
 
-  const { snake, foods, isPlaying, isPaused, theme, difficulty, orientation } = useSelector(
+  const { snake, foods, isPlaying, isPaused, theme, difficulty, gameMode, orientation } = useSelector(
     (state: RootState) => state.game,
   );
 
@@ -187,11 +187,22 @@ export const GameCanvas: React.FC = () => {
     snakeRef.current.speed = hasSpeed ? baseSpeedRef.current * 1.5 : baseSpeedRef.current;
 
     snakeRef.current.move();
-    if (snakeRef.current.checkWallCollision() && !isShieldedRef.current) {
-      gameLoopRef.current?.stop();
-      const score = Math.max(0, snakeRef.current.body.length - 5);
-      Storage.addToLeaderboard({ score, length: snakeRef.current.body.length, date: new Date().toISOString(), theme });
-      dispatch(setPlaying(false)); soundManager.play('gameOver'); return;
+
+    // Wall collision: classic mode = death, endless mode = wrap around
+    if (snakeRef.current.checkWallCollision()) {
+      if (gameMode === 'endless') {
+        // Wrap around
+        const head = snakeRef.current.body[0];
+        if (head.x < 0) head.x = GRID_SIZE - 1;
+        else if (head.x >= GRID_SIZE) head.x = 0;
+        if (head.y < 0) head.y = GRID_SIZE - 1;
+        else if (head.y >= GRID_SIZE) head.y = 0;
+      } else if (!isShieldedRef.current) {
+        gameLoopRef.current?.stop();
+        const score = Math.max(0, snakeRef.current.body.length - 5);
+        Storage.addToLeaderboard({ score, length: snakeRef.current.body.length, date: new Date().toISOString(), theme });
+        dispatch(setPlaying(false)); soundManager.play('gameOver'); return;
+      }
     }
 
     const playerHead = snakeRef.current.getHead();

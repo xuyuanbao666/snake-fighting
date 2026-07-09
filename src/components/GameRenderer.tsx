@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
-import { CELL_SIZE, GRID_SIZE, THEME_COLORS, Theme, FoodType } from '../utils/constants';
+import { CELL_SIZE, GRID_SIZE, VIEWPORT_CELLS, THEME_COLORS, Theme, FoodType } from '../utils/constants';
 import { Position } from '../store/gameSlice';
 
 const { width: screenWidth } = Dimensions.get('window');
-const GAME_BOARD_SIZE = Math.min(screenWidth - 32, GRID_SIZE * CELL_SIZE);
-const CELL_PX = GAME_BOARD_SIZE / GRID_SIZE;
+const VIEWPORT_SIZE = Math.min(screenWidth - 32, VIEWPORT_CELLS * CELL_SIZE);
+const CELL_PX = VIEWPORT_SIZE / VIEWPORT_CELLS;
+const MINIMAP_SIZE = 80;
+const MINIMAP_SCALE = MINIMAP_SIZE / GRID_SIZE;
 
 interface GameRendererProps {
   snakeBody: Position[];
@@ -13,6 +15,20 @@ interface GameRendererProps {
   foodType: FoodType;
   specialFood: { position: Position; type: FoodType } | null;
   theme: Theme;
+}
+
+function getViewportOffset(headX: number, headY: number) {
+  const halfView = VIEWPORT_CELLS / 2;
+  let offsetX = headX - halfView;
+  let offsetY = headY - halfView;
+  offsetX = Math.max(0, Math.min(offsetX, GRID_SIZE - VIEWPORT_CELLS));
+  offsetY = Math.max(0, Math.min(offsetY, GRID_SIZE - VIEWPORT_CELLS));
+  return { offsetX, offsetY };
+}
+
+function isInViewport(x: number, y: number, offsetX: number, offsetY: number) {
+  return x >= offsetX - 1 && x <= offsetX + VIEWPORT_CELLS + 1 &&
+         y >= offsetY - 1 && y <= offsetY + VIEWPORT_CELLS + 1;
 }
 
 const SnakeHead: React.FC<{ x: number; y: number; color: string }> = ({ x, y, color }) => {
@@ -90,6 +106,66 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
   );
 };
 
+const Minimap: React.FC<{
+  snakeBody: Position[];
+  foodPosition: Position;
+  specialFood: { position: Position; type: FoodType } | null;
+  offsetX: number;
+  offsetY: number;
+  colors: typeof THEME_COLORS.classic;
+}> = ({ snakeBody, foodPosition, specialFood, offsetX, offsetY, colors }) => {
+  const head = snakeBody[0];
+  return (
+    <View style={[styles.minimap, { backgroundColor: colors.background + 'CC' }]}>
+      <View
+        style={[
+          styles.minimapViewport,
+          {
+            left: offsetX * MINIMAP_SCALE,
+            top: offsetY * MINIMAP_SCALE,
+            width: VIEWPORT_CELLS * MINIMAP_SCALE,
+            height: VIEWPORT_CELLS * MINIMAP_SCALE,
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.minimapFood,
+          {
+            left: foodPosition.x * MINIMAP_SCALE - 1.5,
+            top: foodPosition.y * MINIMAP_SCALE - 1.5,
+          },
+        ]}
+      />
+      {specialFood && (
+        <View
+          style={[
+            styles.minimapFood,
+            {
+              left: specialFood.position.x * MINIMAP_SCALE - 1.5,
+              top: specialFood.position.y * MINIMAP_SCALE - 1.5,
+              backgroundColor: '#FFD700',
+            },
+          ]}
+        />
+      )}
+      {snakeBody.map((seg, i) => (
+        <View
+          key={i}
+          style={[
+            styles.minimapSnake,
+            {
+              left: seg.x * MINIMAP_SCALE - 1,
+              top: seg.y * MINIMAP_SCALE - 1,
+              backgroundColor: i === 0 ? colors.snake : colors.snake + 'AA',
+            },
+          ]}
+        />
+      ))}
+    </View>
+  );
+};
+
 export const GameRenderer: React.FC<GameRendererProps> = ({
   snakeBody,
   foodPosition,
@@ -98,16 +174,23 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
   theme,
 }) => {
   const colors = THEME_COLORS[theme];
+  const head = snakeBody[0];
+  const { offsetX, offsetY } = getViewportOffset(head.x, head.y);
 
   const snakeSegments = useMemo(() => {
     const segRadius = CELL_PX * 0.4;
     return snakeBody.map((segment, index) => {
+      if (!isInViewport(segment.x, segment.y, offsetX, offsetY)) return null;
+
+      const viewX = segment.x - offsetX;
+      const viewY = segment.y - offsetY;
+
       if (index === 0) {
         return (
           <SnakeHead
             key="head"
-            x={segment.x}
-            y={segment.y}
+            x={viewX}
+            y={viewY}
             color={colors.snake}
           />
         );
@@ -117,36 +200,56 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
       return (
         <SnakeSegment
           key={index}
-          x={segment.x}
-          y={segment.y}
+          x={viewX}
+          y={viewY}
           color={colors.snake}
           alpha={alpha}
           radius={r}
         />
       );
     });
-  }, [snakeBody, colors.snake]);
+  }, [snakeBody, offsetX, offsetY, colors.snake]);
+
+  const foodVisible = isInViewport(foodPosition.x, foodPosition.y, offsetX, offsetY);
+  const specialVisible = specialFood && isInViewport(specialFood.position.x, specialFood.position.y, offsetX, offsetY);
 
   return (
-    <View style={[styles.board, { backgroundColor: colors.background, width: GAME_BOARD_SIZE, height: GAME_BOARD_SIZE }]}>
-      <View style={[styles.gridOverlay, { borderColor: colors.snake + '15' }]}>
-        {Array.from({ length: GRID_SIZE - 1 }).map((_, i) => (
-          <View key={`h${i}`} style={[styles.gridLineH, { top: (i + 1) * CELL_PX }]} />
-        ))}
-        {Array.from({ length: GRID_SIZE - 1 }).map((_, i) => (
-          <View key={`v${i}`} style={[styles.gridLineV, { left: (i + 1) * CELL_PX }]} />
-        ))}
+    <View>
+      <View style={[styles.board, { backgroundColor: colors.background, width: VIEWPORT_SIZE, height: VIEWPORT_SIZE }]}>
+        <View style={[styles.gridOverlay, { borderColor: colors.snake + '15' }]}>
+          {Array.from({ length: VIEWPORT_CELLS - 1 }).map((_, i) => (
+            <View key={`h${i}`} style={[styles.gridLineH, { top: (i + 1) * CELL_PX }]} />
+          ))}
+          {Array.from({ length: VIEWPORT_CELLS - 1 }).map((_, i) => (
+            <View key={`v${i}`} style={[styles.gridLineV, { left: (i + 1) * CELL_PX }]} />
+          ))}
+        </View>
+        {snakeSegments}
+        {foodVisible && (
+          <FoodItem
+            x={foodPosition.x - offsetX}
+            y={foodPosition.y - offsetY}
+            type={foodType}
+            theme={theme}
+          />
+        )}
+        {specialVisible && (
+          <FoodItem
+            x={specialFood.position.x - offsetX}
+            y={specialFood.position.y - offsetY}
+            type={specialFood.type}
+            theme={theme}
+          />
+        )}
       </View>
-      {snakeSegments}
-      <FoodItem x={foodPosition.x} y={foodPosition.y} type={foodType} theme={theme} />
-      {specialFood && (
-        <FoodItem
-          x={specialFood.position.x}
-          y={specialFood.position.y}
-          type={specialFood.type}
-          theme={theme}
-        />
-      )}
+      <Minimap
+        snakeBody={snakeBody}
+        foodPosition={foodPosition}
+        specialFood={specialFood}
+        offsetX={offsetX}
+        offsetY={offsetY}
+        colors={colors}
+      />
     </View>
   );
 };
@@ -237,5 +340,35 @@ const styles = StyleSheet.create({
     bottom: -4,
     borderRadius: 100,
     backgroundColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  minimap: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: MINIMAP_SIZE,
+    height: MINIMAP_SIZE,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.2)',
+    overflow: 'hidden',
+  },
+  minimapViewport: {
+    position: 'absolute',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+    borderRadius: 2,
+  },
+  minimapSnake: {
+    position: 'absolute',
+    width: 2,
+    height: 2,
+    borderRadius: 1,
+  },
+  minimapFood: {
+    position: 'absolute',
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#F44336',
   },
 });

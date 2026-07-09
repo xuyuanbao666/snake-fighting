@@ -1,5 +1,6 @@
-export const GRID_SIZE = 20;
+export const GRID_SIZE = 40;
 export const CELL_SIZE = 16;
+export const VIEWPORT_CELLS = 20;
 export const INITIAL_SNAKE_LENGTH = 3;
 export const INITIAL_SPEED = 150;
 export const MIN_SPEED = 50;

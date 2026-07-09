@@ -8,11 +8,11 @@ export class Snake {
 
   constructor() {
     this.body = [
-      { x: 10, y: 10 },
-      { x: 9, y: 10 },
-      { x: 8, y: 10 },
-      { x: 7, y: 10 },
-      { x: 6, y: 10 },
+      { x: 20, y: 20 },
+      { x: 19, y: 20 },
+      { x: 18, y: 20 },
+      { x: 17, y: 20 },
+      { x: 16, y: 20 },
     ];
     this.velocityX = 1;
     this.velocityY = 0;

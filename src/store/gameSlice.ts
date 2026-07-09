@@ -93,7 +93,7 @@ const initialState: GameState = {
     isMagnetized: false,
   },
   food: {
-    current: { position: { x: 15, y: 15 }, type: FoodType.NORMAL },
+    current: { position: { x: 15, y: 15 }, type: FoodType.STAR },
     special: null,
   },
   score: 0,

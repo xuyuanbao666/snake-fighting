@@ -40,10 +40,22 @@ describe('Renderer', () => {
     expect(ctx.fillRect).toHaveBeenCalled();
   });
 
-  it('should draw food', () => {
+  it('should draw star food', () => {
     const renderer = new Renderer(canvas);
-    renderer.drawFood(5, 5, FoodType.NORMAL);
+    renderer.drawFood(5, 5, FoodType.STAR);
+    expect(ctx.fill).toHaveBeenCalled();
+  });
+
+  it('should draw apple food', () => {
+    const renderer = new Renderer(canvas);
+    renderer.drawFood(5, 5, FoodType.APPLE);
     expect(ctx.arc).toHaveBeenCalled();
+  });
+
+  it('should draw diamond food', () => {
+    const renderer = new Renderer(canvas);
+    renderer.drawFood(5, 5, FoodType.DIAMOND);
+    expect(ctx.fill).toHaveBeenCalled();
   });
 
   it('should clear canvas', () => {
@@ -74,29 +86,5 @@ describe('Renderer', () => {
     const renderer = new Renderer(canvas);
     renderer.drawSnakeHead(10, 10, 'classic');
     expect(ctx.arc).toHaveBeenCalled();
-  });
-
-  it('should draw star food', () => {
-    const renderer = new Renderer(canvas);
-    renderer.drawFood(5, 5, FoodType.STAR);
-    expect(ctx.fill).toHaveBeenCalled();
-  });
-
-  it('should draw rocket food', () => {
-    const renderer = new Renderer(canvas);
-    renderer.drawFood(5, 5, FoodType.ROCKET);
-    expect(ctx.fill).toHaveBeenCalled();
-  });
-
-  it('should draw shield food', () => {
-    const renderer = new Renderer(canvas);
-    renderer.drawFood(5, 5, FoodType.SHIELD);
-    expect(ctx.fill).toHaveBeenCalled();
-  });
-
-  it('should draw magnet food', () => {
-    const renderer = new Renderer(canvas);
-    renderer.drawFood(5, 5, FoodType.MAGNET);
-    expect(ctx.fill).toHaveBeenCalled();
   });
 });

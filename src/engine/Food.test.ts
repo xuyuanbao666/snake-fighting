@@ -41,8 +41,8 @@ describe('Food', () => {
       highScoreTypes.push(food.getRandomType(500));
     }
 
-    const lowSpecial = lowScoreTypes.filter(t => t !== FoodType.NORMAL).length;
-    const highSpecial = highScoreTypes.filter(t => t !== FoodType.NORMAL).length;
+    const lowSpecial = lowScoreTypes.filter(t => t !== FoodType.STAR).length;
+    const highSpecial = highScoreTypes.filter(t => t !== FoodType.STAR).length;
     expect(highSpecial).toBeGreaterThanOrEqual(lowSpecial);
   });
 });

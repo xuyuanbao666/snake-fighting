@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import React, { useMemo, useEffect, useRef } from 'react';
+import { View, StyleSheet, Dimensions, Animated } from 'react-native';
 import { CELL_SIZE, GRID_SIZE, VIEWPORT_CELLS, THEME_COLORS, Theme, FoodType, FOOD_CONFIG } from '../utils/constants';
 import { Position } from '../store/gameSlice';
 
@@ -80,6 +80,8 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
   const config = FOOD_CONFIG[type];
   let size = CELL_PX * 0.7;
   let borderRadius = size / 2;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
 
   // Different sizes for different tiers
   if (type === 'STAR') {
@@ -88,11 +90,56 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
     size = CELL_PX * 0.75;
   } else if (type === 'DIAMOND') {
     size = CELL_PX * 0.85;
-    borderRadius = CELL_PX * 0.15; // Diamond shape
+    borderRadius = CELL_PX * 0.15;
+  }
+
+  // Star glow animation
+  useEffect(() => {
+    if (type === 'STAR') {
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, { toValue: 1, duration: 800, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 0, duration: 800, useNativeDriver: false }),
+        ])
+      );
+      animation.start();
+      return () => animation.stop();
+    }
+  }, [type]);
+
+  // Diamond rotation animation
+  useEffect(() => {
+    if (type === 'DIAMOND') {
+      const animation = Animated.loop(
+        Animated.timing(rotateAnim, { toValue: 1, duration: 2000, useNativeDriver: false })
+      );
+      animation.start();
+      return () => animation.stop();
+    }
+  }, [type]);
+
+  const glowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.8],
+  });
+
+  const rotate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const animatedStyle: any = {};
+  if (type === 'STAR') {
+    animatedStyle.shadowOpacity = glowOpacity;
+    animatedStyle.shadowRadius = 8;
+    animatedStyle.shadowColor = '#FFD700';
+    animatedStyle.shadowOffset = { width: 0, height: 0 };
+  } else if (type === 'DIAMOND') {
+    animatedStyle.transform = [{ rotate }];
   }
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.food,
         {
@@ -103,11 +150,14 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
           backgroundColor: config.color,
           borderRadius,
         },
+        animatedStyle,
       ]}
     >
-      {type === 'STAR' && <View style={styles.foodGlow} />}
       {type === 'APPLE' && <View style={styles.foodLeaf} />}
-    </View>
+      {type === 'STAR' && (
+        <View style={[styles.starInner, { width: size * 0.4, height: size * 0.4 }]} />
+      )}
+    </Animated.View>
   );
 };
 
@@ -439,6 +489,13 @@ const styles = StyleSheet.create({
     bottom: -4,
     borderRadius: 100,
     backgroundColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  starInner: {
+    position: 'absolute',
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    alignSelf: 'center',
+    marginTop: '30%',
   },
   minimap: {
     position: 'absolute',

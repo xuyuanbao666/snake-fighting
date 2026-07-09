@@ -83,8 +83,13 @@ export class Renderer {
     const centerY = y * CELL_SIZE + CELL_SIZE / 2;
 
     switch (type) {
-      case FoodType.NORMAL:
-        this.ctx.fillStyle = colors.food;
+      case FoodType.STAR:
+        this.ctx.fillStyle = '#FFD700';
+        this.drawStar(centerX, centerY, 5, CELL_SIZE / 2, CELL_SIZE / 4);
+        break;
+
+      case FoodType.APPLE:
+        this.ctx.fillStyle = '#F44336';
         this.ctx.beginPath();
         this.ctx.arc(centerX, centerY, CELL_SIZE / 2 - 1, 0, Math.PI * 2);
         this.ctx.fill();
@@ -94,26 +99,22 @@ export class Renderer {
         this.ctx.fill();
         break;
 
-      case FoodType.STAR:
-        this.ctx.fillStyle = colors.special;
-        this.drawStar(centerX, centerY, 5, CELL_SIZE / 2, CELL_SIZE / 4);
-        break;
-
-      case FoodType.ROCKET:
-        this.ctx.fillStyle = '#FF5722';
-        this.drawRocket(centerX, centerY);
-        break;
-
-      case FoodType.SHIELD:
-        this.ctx.fillStyle = '#2196F3';
-        this.drawShield(centerX, centerY);
-        break;
-
-      case FoodType.MAGNET:
-        this.ctx.fillStyle = '#E91E63';
-        this.drawMagnet(centerX, centerY);
+      case FoodType.DIAMOND:
+        this.ctx.fillStyle = '#00BCD4';
+        this.drawDiamond(centerX, centerY);
         break;
     }
+  }
+
+  private drawDiamond(cx: number, cy: number): void {
+    const size = CELL_SIZE / 2;
+    this.ctx.beginPath();
+    this.ctx.moveTo(cx, cy - size);
+    this.ctx.lineTo(cx + size, cy);
+    this.ctx.lineTo(cx, cy + size);
+    this.ctx.lineTo(cx - size, cy);
+    this.ctx.closePath();
+    this.ctx.fill();
   }
 
   private drawStar(cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number): void {

@@ -218,6 +218,23 @@ export const GameCanvas: React.FC = () => {
         }
       }
 
+      // Check if AI hits another AI's body
+      if (ai.alive) {
+        for (const otherAi of aiSnakesRef.current) {
+          if (otherAi === ai || !otherAi.alive) continue;
+          for (let pi = 0; pi < otherAi.body.length; pi++) {
+            const seg = otherAi.body[pi];
+            const dx = aiHeadPos.x - seg.x;
+            const dy = aiHeadPos.y - seg.y;
+            if (dx * dx + dy * dy < 0.8) {
+              ai.alive = false;
+              break;
+            }
+          }
+          if (!ai.alive) break;
+        }
+      }
+
       if (ai.justDied) {
         const buffType = getRandomBuff();
         activeBuffsRef.current.push({ type: buffType, duration: BUFF_CONFIG[buffType].duration, startTime: Date.now() });
@@ -252,6 +269,27 @@ export const GameCanvas: React.FC = () => {
         dispatch(setPlaying(false));
         soundManager.play('gameOver');
         return;
+      }
+    }
+
+    // Check if player head hits any AI snake's body → player dies
+    const playerHead = snakeRef.current.getHead();
+    for (const ai of aiSnakesRef.current) {
+      if (!ai.alive) continue;
+      for (let pi = 0; pi < ai.body.length; pi++) {
+        const seg = ai.body[pi];
+        const dx = playerHead.x - seg.x;
+        const dy = playerHead.y - seg.y;
+        if (dx * dx + dy * dy < 0.8) {
+          if (!isShieldedRef.current) {
+            gameLoopRef.current?.stop();
+            const score = Math.max(0, snakeRef.current.body.length - 5);
+            Storage.addToLeaderboard({ score, length: snakeRef.current.body.length, date: new Date().toISOString(), theme });
+            dispatch(setPlaying(false));
+            soundManager.play('gameOver');
+            return;
+          }
+        }
       }
     }
 

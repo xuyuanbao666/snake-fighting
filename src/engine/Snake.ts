@@ -49,13 +49,6 @@ export class Snake {
   }
 
   checkSelfCollision(): boolean {
-    const head = this.body[0];
-    for (let i = 5; i < this.body.length; i++) {
-      const seg = this.body[i];
-      const dx = head.x - seg.x;
-      const dy = head.y - seg.y;
-      if (dx * dx + dy * dy < 0.3) return true;
-    }
     return false;
   }
 

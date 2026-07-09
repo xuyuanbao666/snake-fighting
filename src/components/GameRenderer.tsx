@@ -1,20 +1,25 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Dimensions, Animated } from 'react-native';
-import { CELL_SIZE, GRID_SIZE, VIEWPORT_CELLS, THEME_COLORS, Theme, FoodType, FOOD_CONFIG } from '../utils/constants';
+import { CELL_SIZE, GRID_SIZE, THEME_COLORS, Theme, FoodType, FOOD_CONFIG } from '../utils/constants';
 import { Position } from '../store/gameSlice';
-
-function getViewportSize() {
-  const { width, height } = Dimensions.get('window');
-  // Use the larger dimension for fullscreen
-  return Math.max(width, height);
-}
-
-function getCellPx() {
-  return getViewportSize() / VIEWPORT_CELLS;
-}
 
 const MINIMAP_SIZE = 80;
 const MINIMAP_SCALE = MINIMAP_SIZE / GRID_SIZE;
+
+// Calculate how many cells fit on screen
+function getViewportCells() {
+  const { width, height } = Dimensions.get('window');
+  const screenSize = Math.max(width, height);
+  return Math.ceil(screenSize / CELL_SIZE) + 2; // +2 for edge padding
+}
+
+function getCellPx() {
+  return CELL_SIZE;
+}
+
+function getViewportSize() {
+  return getViewportCells() * getCellPx();
+}
 
 interface GameRendererProps {
   snakeBody: Position[];
@@ -26,17 +31,19 @@ interface GameRendererProps {
 }
 
 function getViewportOffset(headX: number, headY: number) {
-  const halfView = VIEWPORT_CELLS / 2;
+  const viewportCells = getViewportCells();
+  const halfView = viewportCells / 2;
   let offsetX = headX - halfView;
   let offsetY = headY - halfView;
-  offsetX = Math.max(0, Math.min(offsetX, GRID_SIZE - VIEWPORT_CELLS));
-  offsetY = Math.max(0, Math.min(offsetY, GRID_SIZE - VIEWPORT_CELLS));
+  offsetX = Math.max(0, Math.min(offsetX, GRID_SIZE - viewportCells));
+  offsetY = Math.max(0, Math.min(offsetY, GRID_SIZE - viewportCells));
   return { offsetX, offsetY };
 }
 
 function isInViewport(x: number, y: number, offsetX: number, offsetY: number) {
-  return x >= offsetX - 1 && x <= offsetX + VIEWPORT_CELLS + 1 &&
-         y >= offsetY - 1 && y <= offsetY + VIEWPORT_CELLS + 1;
+  const viewportCells = getViewportCells();
+  return x >= offsetX - 1 && x <= offsetX + viewportCells + 1 &&
+         y >= offsetY - 1 && y <= offsetY + viewportCells + 1;
 }
 
 const SnakeHead: React.FC<{ x: number; y: number; color: string; cellPx: number }> = ({ x, y, color, cellPx }) => {
@@ -215,8 +222,8 @@ const Minimap: React.FC<{
           {
             left: offsetX * MINIMAP_SCALE,
             top: offsetY * MINIMAP_SCALE,
-            width: VIEWPORT_CELLS * MINIMAP_SCALE,
-            height: VIEWPORT_CELLS * MINIMAP_SCALE,
+            width: Math.min(getViewportCells(), GRID_SIZE) * MINIMAP_SCALE,
+            height: Math.min(getViewportCells(), GRID_SIZE) * MINIMAP_SCALE,
           },
         ]}
       />
@@ -276,13 +283,13 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
   const colors = THEME_COLORS[theme];
   const head = snakeBody[0];
   const { offsetX, offsetY } = getViewportOffset(head.x, head.y);
-  const [viewportSize, setViewportSize] = useState(getViewportSize());
-  const cellPx = viewportSize / VIEWPORT_CELLS;
+  const [viewportCells, setViewportCells] = useState(getViewportCells());
+  const cellPx = getCellPx();
 
   // Listen for dimension changes (orientation)
   useEffect(() => {
     const onChange = () => {
-      setViewportSize(getViewportSize());
+      setViewportCells(getViewportCells());
     };
     const subscription = Dimensions.addEventListener('change', onChange);
     return () => subscription?.remove?.();
@@ -367,10 +374,10 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
     <View style={{ flex: 1 }}>
       <View style={[styles.board, { backgroundColor: colors.background, flex: 1 }]}>
         <View style={[styles.gridOverlay, { borderColor: colors.snake + '15' }]}>
-          {Array.from({ length: VIEWPORT_CELLS - 1 }).map((_, i) => (
+          {Array.from({ length: viewportCells - 1 }).map((_, i) => (
             <View key={`h${i}`} style={[styles.gridLineH, { top: (i + 1) * cellPx }]} />
           ))}
-          {Array.from({ length: VIEWPORT_CELLS - 1 }).map((_, i) => (
+          {Array.from({ length: viewportCells - 1 }).map((_, i) => (
             <View key={`v${i}`} style={[styles.gridLineV, { left: (i + 1) * cellPx }]} />
           ))}
         </View>

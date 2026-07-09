@@ -9,10 +9,10 @@ export class Snake {
   constructor() {
     this.body = [
       { x: 10, y: 10 },
-      { x: 9.5, y: 10 },
       { x: 9, y: 10 },
-      { x: 8.5, y: 10 },
       { x: 8, y: 10 },
+      { x: 7, y: 10 },
+      { x: 6, y: 10 },
     ];
     this.velocityX = 1;
     this.velocityY = 0;
@@ -50,11 +50,11 @@ export class Snake {
 
   checkSelfCollision(): boolean {
     const head = this.body[0];
-    for (let i = 4; i < this.body.length; i++) {
+    for (let i = 5; i < this.body.length; i++) {
       const seg = this.body[i];
       const dx = head.x - seg.x;
       const dy = head.y - seg.y;
-      if (dx * dx + dy * dy < 0.5) return true;
+      if (dx * dx + dy * dy < 0.3) return true;
     }
     return false;
   }

@@ -82,8 +82,8 @@ android {
         applicationId "com.snakefighting"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 35
-        versionName "2.21.1"
+        versionCode 36
+        versionName "2.22.0"
     }
     signingConfigs {
         debug {

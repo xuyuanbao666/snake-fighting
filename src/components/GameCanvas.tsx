@@ -63,6 +63,7 @@ export const GameCanvas: React.FC = () => {
   const activeBuffsRef = useRef<ActiveBuff[]>([]);
   const baseSpeedRef = useRef(0.15);
   const aiConfigRef = useRef({ speed: 0.09, intelligence: 0.3 });
+  const frameCountRef = useRef(0);
 
   // Floating joystick state
   const [joystickCenter, setJoystickCenter] = useState({ x: 0, y: 0 });
@@ -136,6 +137,9 @@ export const GameCanvas: React.FC = () => {
     }
 
     const foodPositions = currentFoods.map(f => f.position);
+    const foodsToRemove: number[] = [];
+    let killedAi = false;
+
     for (const ai of aiSnakesRef.current) {
       if (!ai.alive) continue;
       if (isImpossible) {
@@ -154,10 +158,11 @@ export const GameCanvas: React.FC = () => {
       }
       const aiHead = { x: Math.round(ai.getHead().x), y: Math.round(ai.getHead().y) };
       for (let fi = 0; fi < currentFoods.length; fi++) {
+        if (foodsToRemove.includes(fi)) continue;
         if (Collision.checkFoodCollision(aiHead, currentFoods[fi].position)) {
           const foodConfig = FOOD_CONFIG[currentFoods[fi].type];
           for (let g = 0; g < foodConfig.growth; g++) ai.grow();
-          dispatch(removeFood(fi)); break;
+          foodsToRemove.push(fi); break;
         }
       }
       const aiHeadPos = ai.getHead();
@@ -165,25 +170,28 @@ export const GameCanvas: React.FC = () => {
         const seg = snakeRef.current.body[pi];
         if ((aiHeadPos.x - seg.x) ** 2 + (aiHeadPos.y - seg.y) ** 2 < 0.8) {
           ai.alive = false;
+          killedAi = true;
           const buffType = getRandomBuff();
           activeBuffsRef.current.push({ type: buffType, duration: BUFF_CONFIG[buffType].duration, startTime: Date.now() });
-          setActiveBuffs([...activeBuffsRef.current]);
           setKillFeed(prev => [...prev.slice(-4), { text: `击杀 ${ai.name}! ${BUFF_CONFIG[buffType].emoji} ${BUFF_CONFIG[buffType].label}`, time: Date.now() }]); break;
         }
       }
       if (ai.alive) {
         for (const otherAi of aiSnakesRef.current) {
           if (otherAi === ai || !otherAi.alive) continue;
+          const dx = aiHeadPos.x - otherAi.body[0].x;
+          const dy = aiHeadPos.y - otherAi.body[0].y;
+          if (dx * dx + dy * dy > 25) continue;
           for (let pi = 0; pi < otherAi.body.length; pi++) {
-            if ((aiHeadPos.x - otherAi.body[pi].x) ** 2 + (aiHeadPos.y - otherAi.body[pi].y) ** 2 < 0.8) { ai.alive = false; break; }
+            if ((aiHeadPos.x - otherAi.body[pi].x) ** 2 + (aiHeadPos.y - otherAi.body[pi].y) ** 2 < 0.8) { ai.alive = false; killedAi = true; break; }
           }
           if (!ai.alive) break;
         }
       }
       if (ai.justDied) {
+        killedAi = true;
         const buffType = getRandomBuff();
         activeBuffsRef.current.push({ type: buffType, duration: BUFF_CONFIG[buffType].duration, startTime: Date.now() });
-        setActiveBuffs([...activeBuffsRef.current]);
         setKillFeed(prev => [...prev.slice(-4), { text: `${ai.name} 撞墙! ${BUFF_CONFIG[buffType].emoji} ${BUFF_CONFIG[buffType].label}`, time: Date.now() }]);
       }
     }
@@ -199,7 +207,6 @@ export const GameCanvas: React.FC = () => {
     }
 
     activeBuffsRef.current = activeBuffsRef.current.map(b => ({ ...b, duration: b.duration - 1 })).filter(b => b.duration > 0);
-    setActiveBuffs([...activeBuffsRef.current]);
     const hasShield = activeBuffsRef.current.some(b => b.type === 'shield');
     const hasSpeed = activeBuffsRef.current.some(b => b.type === 'speed');
     const hasDoubleScore = activeBuffsRef.current.some(b => b.type === 'doubleScore');
@@ -228,6 +235,9 @@ export const GameCanvas: React.FC = () => {
     const playerHead = snakeRef.current.getHead();
     for (const ai of aiSnakesRef.current) {
       if (!ai.alive) continue;
+      const dx = playerHead.x - ai.body[0].x;
+      const dy = playerHead.y - ai.body[0].y;
+      if (dx * dx + dy * dy > 100) continue;
       for (let pi = 0; pi < ai.body.length; pi++) {
         if ((playerHead.x - ai.body[pi].x) ** 2 + (playerHead.y - ai.body[pi].y) ** 2 < 0.8 && !isShieldedRef.current) {
           gameLoopRef.current?.stop();
@@ -245,24 +255,38 @@ export const GameCanvas: React.FC = () => {
     let ateIndex = -1;
     let ateType = FoodType.STAR;
     for (let fi = 0; fi < currentFoods.length; fi++) {
+      if (foodsToRemove.includes(fi)) continue;
       if (Collision.checkFoodCollision(headGrid, currentFoods[fi].position)) {
         const foodConfig = FOOD_CONFIG[currentFoods[fi].type];
         for (let g = 0; g < foodConfig.growth; g++) { snakeRef.current.grow(); }
         ate = true; ateIndex = fi; ateType = currentFoods[fi].type; break;
       }
     }
+    if (ate) foodsToRemove.push(ateIndex);
+
+    if (foodsToRemove.length > 0) {
+      const newFoods = currentFoods.filter((_, i) => !foodsToRemove.includes(i));
+      dispatch(setFoods(newFoods));
+      foodsRef.current = newFoods;
+    }
+
     if (ate) {
       setSnakeBodyForRender(snakeRef.current.body.map(p => ({ x: p.x, y: p.y })));
       dispatch(updateSnakeBody(snakeRef.current.body.map(p => ({ x: p.x, y: p.y }))));
       dispatch(addScore(hasDoubleScore ? FOOD_CONFIG[ateType].points * 2 : FOOD_CONFIG[ateType].points));
       dispatch(incrementFoodEaten()); soundManager.play('eat');
-      dispatch(removeFood(ateIndex));
       spawnFoodsRef.current();
     } else if (currentFoods.length < 8) {
       spawnFoodsRef.current();
     }
-    setAiSnakesData(aiSnakesRef.current.filter(s => s.alive).map(s => ({ body: s.body.map(p => ({ ...p })), color: s.color, name: s.name })));
-    updateRanking();
+
+    if (killedAi) setActiveBuffs([...activeBuffsRef.current]);
+
+    frameCountRef.current++;
+    if (frameCountRef.current % 3 === 0) {
+      setAiSnakesData(aiSnakesRef.current.filter(s => s.alive).map(s => ({ body: s.body.map(p => ({ ...p })), color: s.color, name: s.name })));
+      updateRanking();
+    }
   }, [dispatch, theme, updateRanking, difficulty, gameMode]);
 
   const handleGameUpdateRef = useRef(handleGameUpdate);
@@ -292,6 +316,7 @@ export const GameCanvas: React.FC = () => {
       if (difficulty === 'impossible') { trapManagerRef.current = new TrapManager(); poisonFogRef.current = new PoisonFog(); }
       else { poisonFogRef.current = null; setTrapsData([]); setFogData(null); }
       activeBuffsRef.current = []; setActiveBuffs([]); setKillFeed([]);
+      frameCountRef.current = 0;
       setSnakeBodyForRender(snakeRef.current.body.map(p => ({ x: p.x, y: p.y })));
       dispatch(updateSnakeBody(snakeRef.current.body.map(p => ({ x: p.x, y: p.y }))));
       spawnFoodsRef.current();

@@ -33,9 +33,9 @@ const JOYSTICK_RADIUS = 60;
 const KNOB_RADIUS = 22;
 
 const FOOD_LIMITS = {
-  [FoodType.STAR]: { min: 5, max: 8 },
-  [FoodType.APPLE]: { min: 2, max: 3 },
-  [FoodType.DIAMOND]: { min: 1, max: 1 },
+  [FoodType.STAR]: { min: 12, max: 18 },
+  [FoodType.APPLE]: { min: 5, max: 8 },
+  [FoodType.DIAMOND]: { min: 2, max: 4 },
 };
 
 export const GameCanvas: React.FC = () => {
@@ -59,6 +59,7 @@ export const GameCanvas: React.FC = () => {
   const [fogData, setFogData] = useState<{ minX: number; minY: number; maxX: number; maxY: number } | null>(null);
   const [activeBuffs, setActiveBuffs] = useState<ActiveBuff[]>([]);
   const [killFeed, setKillFeed] = useState<{ text: string; time: number }[]>([]);
+  const [snakeBodyForRender, setSnakeBodyForRender] = useState<{ x: number; y: number }[]>([]);
   const activeBuffsRef = useRef<ActiveBuff[]>([]);
   const baseSpeedRef = useRef(0.15);
   const aiConfigRef = useRef({ speed: 0.09, intelligence: 0.3 });
@@ -237,20 +238,29 @@ export const GameCanvas: React.FC = () => {
       }
     }
 
-    dispatch(updateSnakeBody(snakeRef.current.body.map(p => ({ x: p.x, y: p.y }))));
+    setSnakeBodyForRender(snakeRef.current.body.map(p => ({ x: p.x, y: p.y })));
     const head = snakeRef.current.getHead();
     const headGrid = { x: Math.round(head.x), y: Math.round(head.y) };
     let ate = false;
+    let ateIndex = -1;
+    let ateType = FoodType.STAR;
     for (let fi = 0; fi < currentFoods.length; fi++) {
       if (Collision.checkFoodCollision(headGrid, currentFoods[fi].position)) {
         const foodConfig = FOOD_CONFIG[currentFoods[fi].type];
-        for (let g = 0; g < foodConfig.growth; g++) { snakeRef.current.grow(); dispatch(growSnake()); }
-        dispatch(addScore(hasDoubleScore ? foodConfig.points * 2 : foodConfig.points));
-        dispatch(incrementFoodEaten()); soundManager.play('eat');
-        dispatch(removeFood(fi)); ate = true; break;
+        for (let g = 0; g < foodConfig.growth; g++) { snakeRef.current.grow(); }
+        ate = true; ateIndex = fi; ateType = currentFoods[fi].type; break;
       }
     }
-    if (ate || currentFoods.length < 5) spawnFoodsRef.current();
+    if (ate) {
+      setSnakeBodyForRender(snakeRef.current.body.map(p => ({ x: p.x, y: p.y })));
+      dispatch(updateSnakeBody(snakeRef.current.body.map(p => ({ x: p.x, y: p.y }))));
+      dispatch(addScore(hasDoubleScore ? FOOD_CONFIG[ateType].points * 2 : FOOD_CONFIG[ateType].points));
+      dispatch(incrementFoodEaten()); soundManager.play('eat');
+      dispatch(removeFood(ateIndex));
+      spawnFoodsRef.current();
+    } else if (currentFoods.length < 8) {
+      spawnFoodsRef.current();
+    }
     setAiSnakesData(aiSnakesRef.current.filter(s => s.alive).map(s => ({ body: s.body.map(p => ({ ...p })), color: s.color, name: s.name })));
     updateRanking();
   }, [dispatch, theme, updateRanking, difficulty, gameMode]);
@@ -282,6 +292,7 @@ export const GameCanvas: React.FC = () => {
       if (difficulty === 'impossible') { trapManagerRef.current = new TrapManager(); poisonFogRef.current = new PoisonFog(); }
       else { poisonFogRef.current = null; setTrapsData([]); setFogData(null); }
       activeBuffsRef.current = []; setActiveBuffs([]); setKillFeed([]);
+      setSnakeBodyForRender(snakeRef.current.body.map(p => ({ x: p.x, y: p.y })));
       dispatch(updateSnakeBody(snakeRef.current.body.map(p => ({ x: p.x, y: p.y }))));
       spawnFoodsRef.current();
     }
@@ -341,7 +352,7 @@ export const GameCanvas: React.FC = () => {
     <View style={styles.container} {...joystickPanResponder.panHandlers}>
       {/* Fullscreen game board */}
       <View style={styles.gameBoard}>
-        <GameRenderer snakeBody={snake.body} foods={foods} theme={theme} aiSnakes={aiSnakesData} traps={trapsData} fog={fogData} />
+        <GameRenderer snakeBody={snakeBodyForRender} foods={foods} theme={theme} aiSnakes={aiSnakesData} traps={trapsData} fog={fogData} />
       </View>
 
       {/* HUD overlay - top */}

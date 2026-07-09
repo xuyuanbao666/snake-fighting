@@ -1,0 +1,171 @@
+import { CELL_SIZE, THEME_COLORS, Theme, FoodType } from '../utils/constants';
+import { Position } from '../store/gameSlice';
+
+export class Renderer {
+  private ctx: CanvasRenderingContext2D;
+  private canvas: any;
+  private theme: Theme;
+
+  constructor(canvas: any, theme: Theme = 'classic') {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.theme = theme;
+  }
+
+  setTheme(theme: Theme): void {
+    this.theme = theme;
+  }
+
+  clear(): void {
+    const colors = THEME_COLORS[this.theme];
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.fillStyle = colors.background;
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  drawSnakeSegment(x: number, y: number, color: string): void {
+    this.ctx.fillStyle = color;
+    this.ctx.fillRect(
+      x * CELL_SIZE,
+      y * CELL_SIZE,
+      CELL_SIZE - 1,
+      CELL_SIZE - 1
+    );
+  }
+
+  drawSnakeBody(body: Position[], theme: Theme): void {
+    const colors = THEME_COLORS[theme];
+    body.forEach((segment, index) => {
+      const alpha = 1 - (index / body.length) * 0.5;
+      this.ctx.globalAlpha = alpha;
+      this.drawSnakeSegment(segment.x, segment.y, colors.snake);
+    });
+    this.ctx.globalAlpha = 1;
+  }
+
+  drawSnakeHead(x: number, y: number, theme: Theme): void {
+    const colors = THEME_COLORS[theme];
+    this.ctx.fillStyle = colors.snake;
+    this.ctx.beginPath();
+    this.ctx.arc(
+      x * CELL_SIZE + CELL_SIZE / 2,
+      y * CELL_SIZE + CELL_SIZE / 2,
+      CELL_SIZE / 2,
+      0,
+      Math.PI * 2
+    );
+    this.ctx.fill();
+
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.beginPath();
+    this.ctx.arc(
+      x * CELL_SIZE + CELL_SIZE * 0.3,
+      y * CELL_SIZE + CELL_SIZE * 0.3,
+      2,
+      0,
+      Math.PI * 2
+    );
+    this.ctx.fill();
+    this.ctx.beginPath();
+    this.ctx.arc(
+      x * CELL_SIZE + CELL_SIZE * 0.7,
+      y * CELL_SIZE + CELL_SIZE * 0.3,
+      2,
+      0,
+      Math.PI * 2
+    );
+    this.ctx.fill();
+  }
+
+  drawFood(x: number, y: number, type: FoodType): void {
+    const colors = THEME_COLORS[this.theme];
+    const centerX = x * CELL_SIZE + CELL_SIZE / 2;
+    const centerY = y * CELL_SIZE + CELL_SIZE / 2;
+
+    switch (type) {
+      case FoodType.NORMAL:
+        this.ctx.fillStyle = colors.food;
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, CELL_SIZE / 2 - 1, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.fillStyle = '#4CAF50';
+        this.ctx.beginPath();
+        this.ctx.ellipse(centerX, centerY - CELL_SIZE / 2, 3, 5, 0, 0, Math.PI * 2);
+        this.ctx.fill();
+        break;
+
+      case FoodType.STAR:
+        this.ctx.fillStyle = colors.special;
+        this.drawStar(centerX, centerY, 5, CELL_SIZE / 2, CELL_SIZE / 4);
+        break;
+
+      case FoodType.ROCKET:
+        this.ctx.fillStyle = '#FF5722';
+        this.drawRocket(centerX, centerY);
+        break;
+
+      case FoodType.SHIELD:
+        this.ctx.fillStyle = '#2196F3';
+        this.drawShield(centerX, centerY);
+        break;
+
+      case FoodType.MAGNET:
+        this.ctx.fillStyle = '#E91E63';
+        this.drawMagnet(centerX, centerY);
+        break;
+    }
+  }
+
+  private drawStar(cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number): void {
+    let rot = (Math.PI / 2) * 3;
+    const step = Math.PI / spikes;
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(cx, cy - outerRadius);
+
+    for (let i = 0; i < spikes; i++) {
+      this.ctx.lineTo(
+        cx + Math.cos(rot) * outerRadius,
+        cy + Math.sin(rot) * outerRadius
+      );
+      rot += step;
+      this.ctx.lineTo(
+        cx + Math.cos(rot) * innerRadius,
+        cy + Math.sin(rot) * innerRadius
+      );
+      rot += step;
+    }
+
+    this.ctx.lineTo(cx, cy - outerRadius);
+    this.ctx.closePath();
+    this.ctx.fill();
+  }
+
+  private drawRocket(cx: number, cy: number): void {
+    this.ctx.beginPath();
+    this.ctx.moveTo(cx, cy - CELL_SIZE / 2);
+    this.ctx.lineTo(cx + CELL_SIZE / 3, cy + CELL_SIZE / 3);
+    this.ctx.lineTo(cx - CELL_SIZE / 3, cy + CELL_SIZE / 3);
+    this.ctx.closePath();
+    this.ctx.fill();
+  }
+
+  private drawShield(cx: number, cy: number): void {
+    this.ctx.beginPath();
+    this.ctx.moveTo(cx, cy - CELL_SIZE / 2);
+    this.ctx.lineTo(cx + CELL_SIZE / 2, cy - CELL_SIZE / 4);
+    this.ctx.lineTo(cx + CELL_SIZE / 2, cy + CELL_SIZE / 4);
+    this.ctx.lineTo(cx, cy + CELL_SIZE / 2);
+    this.ctx.lineTo(cx - CELL_SIZE / 2, cy + CELL_SIZE / 4);
+    this.ctx.lineTo(cx - CELL_SIZE / 2, cy - CELL_SIZE / 4);
+    this.ctx.closePath();
+    this.ctx.fill();
+  }
+
+  private drawMagnet(cx: number, cy: number): void {
+    this.ctx.beginPath();
+    this.ctx.arc(cx, cy, CELL_SIZE / 3, 0, Math.PI);
+    this.ctx.fill();
+    this.ctx.fillRect(cx - CELL_SIZE / 3, cy, CELL_SIZE * 2 / 3, CELL_SIZE / 4);
+  }
+}

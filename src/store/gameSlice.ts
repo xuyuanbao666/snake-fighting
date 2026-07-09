@@ -135,8 +135,10 @@ const gameSlice = createSlice({
     updateSnakeBody(state, action: PayloadAction<Position[]>) {
       state.snake.body = action.payload;
     },
-    resetGame(_state) {
-      return initialState;
+    resetGame(state) {
+      const highScore = state.highScore;
+      const theme = state.theme;
+      return { ...initialState, highScore, theme };
     },
   },
 });

@@ -15,7 +15,7 @@ import { Snake } from '../engine/Snake';
 import { Food } from '../engine/Food';
 import { Collision } from '../engine/Collision';
 import { GameLoop } from '../engine/GameLoop';
-import { FoodType } from '../utils/constants';
+import { Direction, FoodType } from '../utils/constants';
 import { soundManager } from '../utils/sound';
 import { GameRenderer } from './GameRenderer';
 
@@ -129,9 +129,9 @@ export const GameCanvas: React.FC = () => {
       onPanResponderMove: (_, gestureState) => {
         const { dx, dy } = gestureState;
         if (Math.abs(dx) > Math.abs(dy)) {
-          dispatch(setDirection(dx > 0 ? 'RIGHT' : 'LEFT'));
+          dispatch(setDirection(dx > 0 ? Direction.RIGHT : Direction.LEFT));
         } else {
-          dispatch(setDirection(dy > 0 ? 'DOWN' : 'UP'));
+          dispatch(setDirection(dy > 0 ? Direction.DOWN : Direction.UP));
         }
       },
     }),

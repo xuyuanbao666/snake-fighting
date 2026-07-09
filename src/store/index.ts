@@ -1,8 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
+import gameReducer from './gameSlice';
+import settingsReducer from './settingsSlice';
 
 export const store = configureStore({
   reducer: {
-    // Game reducers will be added in subsequent tasks
+    game: gameReducer,
+    settings: settingsReducer,
   },
 });
 

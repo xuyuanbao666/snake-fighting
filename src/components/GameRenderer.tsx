@@ -16,6 +16,8 @@ interface GameRendererProps {
   specialFood: { position: Position; type: FoodType } | null;
   theme: Theme;
   aiSnakes?: { body: Position[]; color: string; name: string }[];
+  traps?: { x: number; y: number; type: string; radius: number }[];
+  fog?: { minX: number; minY: number; maxX: number; maxY: number } | null;
 }
 
 function getViewportOffset(headX: number, headY: number) {
@@ -190,6 +192,8 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
   specialFood,
   theme,
   aiSnakes = [],
+  traps = [],
+  fog = null,
 }) => {
   const colors = THEME_COLORS[theme];
   const head = snakeBody[0];
@@ -284,6 +288,54 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
             type={specialFood.type}
             theme={theme}
           />
+        )}
+        {/* Traps */}
+        {traps.map((trap, i) => {
+          if (!isInViewport(trap.x, trap.y, offsetX, offsetY)) return null;
+          const viewX = (trap.x - offsetX) * CELL_PX;
+          const viewY = (trap.y - offsetY) * CELL_PX;
+          const size = trap.radius * CELL_PX * 2;
+          let color = '#FF5722';
+          if (trap.type === 'poison') color = '#9C27B0';
+          if (trap.type === 'slow') color = '#FF9800';
+          return (
+            <View
+              key={`trap-${i}`}
+              style={{
+                position: 'absolute',
+                left: viewX - size / 2,
+                top: viewY - size / 2,
+                width: size,
+                height: size,
+                borderRadius: size / 2,
+                backgroundColor: color + '40',
+                borderWidth: 2,
+                borderColor: color,
+                borderStyle: 'dashed',
+              }}
+            />
+          );
+        })}
+        {/* Poison Fog */}
+        {fog && (
+          <>
+            {/* Top fog */}
+            {fog.minY > 0 && (
+              <View style={[styles.fogZone, { top: 0, left: 0, right: 0, height: (fog.minY - offsetY) * CELL_PX }]} />
+            )}
+            {/* Bottom fog */}
+            {fog.maxY < GRID_SIZE && (
+              <View style={[styles.fogZone, { bottom: 0, left: 0, right: 0, height: (GRID_SIZE - fog.maxY - offsetY) * CELL_PX }]} />
+            )}
+            {/* Left fog */}
+            {fog.minX > 0 && (
+              <View style={[styles.fogZone, { top: 0, left: 0, width: (fog.minX - offsetX) * CELL_PX, bottom: 0 }]} />
+            )}
+            {/* Right fog */}
+            {fog.maxX < GRID_SIZE && (
+              <View style={[styles.fogZone, { top: 0, right: 0, width: (GRID_SIZE - fog.maxX - offsetX) * CELL_PX, bottom: 0 }]} />
+            )}
+          </>
         )}
       </View>
       <Minimap
@@ -415,5 +467,9 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
     backgroundColor: '#F44336',
+  },
+  fogZone: {
+    position: 'absolute',
+    backgroundColor: 'rgba(128, 0, 128, 0.3)',
   },
 });

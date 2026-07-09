@@ -17,6 +17,7 @@ import { AISnake, createAISnakes } from '../engine/AISnake';
 import { Food } from '../engine/Food';
 import { Collision } from '../engine/Collision';
 import { GameLoop } from '../engine/GameLoop';
+import { TrapManager, PoisonFog } from '../engine/Hazard';
 import { FoodType, THEME_COLORS, GRID_SIZE } from '../utils/constants';
 import { soundManager } from '../utils/sound';
 import { Storage } from '../utils/storage';
@@ -33,6 +34,8 @@ export const GameCanvas: React.FC = () => {
   const aiSnakesRef = useRef<AISnake[]>([]);
   const foodRef = useRef<Food>(new Food());
   const gameLoopRef = useRef<GameLoop | null>(null);
+  const trapManagerRef = useRef<TrapManager>(new TrapManager());
+  const poisonFogRef = useRef<PoisonFog | null>(null);
 
   const { snake, food, isPlaying, isPaused, theme, difficulty } = useSelector(
     (state: RootState) => state.game,
@@ -42,6 +45,8 @@ export const GameCanvas: React.FC = () => {
   const isShieldedRef = useRef(snake.isShielded);
   const [aiSnakesData, setAiSnakesData] = useState<{ body: { x: number; y: number }[]; color: string; name: string }[]>([]);
   const [rankingData, setRankingData] = useState<{ name: string; length: number; color: string; isPlayer: boolean }[]>([]);
+  const [trapsData, setTrapsData] = useState<{ x: number; y: number; type: string; radius: number }[]>([]);
+  const [fogData, setFogData] = useState<{ minX: number; minY: number; maxX: number; maxY: number } | null>(null);
 
   const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 });
   const [joystickActive, setJoystickActive] = useState(false);
@@ -84,10 +89,88 @@ export const GameCanvas: React.FC = () => {
     const currentFood = foodState.current;
     const foods = [currentFood.position];
     if (foodState.special) foods.push(foodState.special.position);
+    const isImpossible = difficulty === 'impossible';
+
+    // Update hazards (impossible mode only)
+    if (isImpossible && poisonFogRef.current) {
+      poisonFogRef.current.update();
+      trapManagerRef.current.update(
+        snakeRef.current.body,
+        aiSnakesRef.current.filter(s => s.alive).map(s => s.body)
+      );
+
+      // Check if player is in poison fog
+      const head = snakeRef.current.getHead();
+      if (!poisonFogRef.current.isInSafeZone(head)) {
+        gameLoopRef.current?.stop();
+        const score = Math.max(0, snakeRef.current.body.length - 5);
+        Storage.addToLeaderboard({
+          score,
+          length: snakeRef.current.body.length,
+          date: new Date().toISOString(),
+          theme,
+        });
+        dispatch(setPlaying(false));
+        soundManager.play('gameOver');
+        return;
+      }
+
+      // Check trap collision
+      const hitTrap = trapManagerRef.current.checkCollision(head);
+      if (hitTrap) {
+        if (hitTrap.type === 'spike') {
+          gameLoopRef.current?.stop();
+          const score = Math.max(0, snakeRef.current.body.length - 5);
+          Storage.addToLeaderboard({
+            score,
+            length: snakeRef.current.body.length,
+            date: new Date().toISOString(),
+            theme,
+          });
+          dispatch(setPlaying(false));
+          soundManager.play('gameOver');
+          return;
+        } else if (hitTrap.type === 'slow') {
+          snakeRef.current.speed = Math.min(0.25, snakeRef.current.speed + 0.02);
+        }
+      }
+
+      // Update hazard render data
+      setTrapsData(
+        trapManagerRef.current.traps
+          .filter(t => t.active)
+          .map(t => ({ x: t.position.x, y: t.position.y, type: t.type, radius: t.radius }))
+      );
+      setFogData({
+        minX: poisonFogRef.current.minX,
+        minY: poisonFogRef.current.minY,
+        maxX: poisonFogRef.current.maxX,
+        maxY: poisonFogRef.current.maxY,
+      });
+    }
 
     // Update AI snakes
     for (const ai of aiSnakesRef.current) {
       if (!ai.alive) continue;
+
+      // AI avoids traps in impossible mode
+      if (isImpossible) {
+        const aiHead = ai.getHead();
+        const nearTrap = trapManagerRef.current.traps.find(t =>
+          t.active && Math.abs(t.position.x - aiHead.x) < 3 && Math.abs(t.position.y - aiHead.y) < 3
+        );
+        if (nearTrap) {
+          // Steer away from trap
+          const dx = aiHead.x - nearTrap.position.x;
+          const dy = aiHead.y - nearTrap.position.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          ai.velocityX = dx / dist;
+          ai.velocityY = dy / dist;
+          ai.move();
+          continue;
+        }
+      }
+
       ai.update(foods, snakeRef.current.getHead(), snakeRef.current.body);
 
       const aiHead = { x: Math.round(ai.getHead().x), y: Math.round(ai.getHead().y) };
@@ -179,6 +262,17 @@ export const GameCanvas: React.FC = () => {
         speed: diffConfig.aiSpeed,
         intelligence: diffConfig.aiIntelligence,
       });
+
+      // Initialize hazards for impossible mode
+      if (difficulty === 'impossible') {
+        trapManagerRef.current = new TrapManager();
+        poisonFogRef.current = new PoisonFog();
+      } else {
+        poisonFogRef.current = null;
+        setTrapsData([]);
+        setFogData(null);
+      }
+
       const bodyCopy = snakeRef.current.body.map(p => ({ x: p.x, y: p.y }));
       dispatch(updateSnakeBody(bodyCopy));
       generateNewFoodRef.current();
@@ -260,6 +354,8 @@ export const GameCanvas: React.FC = () => {
           specialFood={food.special}
           theme={theme}
           aiSnakes={aiSnakesData}
+          traps={trapsData}
+          fog={fogData}
         />
         <RealtimeRanking entries={rankingData} />
       </View>

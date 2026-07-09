@@ -48,10 +48,6 @@ export class Snake {
   }
 
   checkSelfCollision(): boolean {
-    const head = this.body[0];
-    if (this.body.slice(1).some(s => s.x === head.x && s.y === head.y)) {
-      return true;
-    }
     const seen = new Set<string>();
     for (const seg of this.body) {
       const key = `${seg.x},${seg.y}`;

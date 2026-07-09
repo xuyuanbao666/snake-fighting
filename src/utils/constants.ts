@@ -5,6 +5,11 @@ export const INITIAL_SPEED = 150;
 export const MIN_SPEED = 50;
 export const SPEED_INCREMENT = 10;
 
+export interface Position {
+  x: number;
+  y: number;
+}
+
 export const Direction = {
   UP: 'UP',
   DOWN: 'DOWN',

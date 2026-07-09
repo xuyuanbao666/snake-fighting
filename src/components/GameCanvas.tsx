@@ -34,6 +34,22 @@ export const GameCanvas: React.FC = () => {
     (state: RootState) => state.game,
   );
 
+  const directionRef = useRef(snake.direction);
+  const foodStateRef = useRef(food);
+  const isShieldedRef = useRef(snake.isShielded);
+
+  useEffect(() => {
+    directionRef.current = snake.direction;
+  }, [snake.direction]);
+
+  useEffect(() => {
+    foodStateRef.current = food;
+  }, [food]);
+
+  useEffect(() => {
+    isShieldedRef.current = snake.isShielded;
+  }, [snake.isShielded]);
+
   useEffect(() => {
     if (canvasRef.current) {
       rendererRef.current = new Renderer(canvasRef.current, theme);
@@ -42,21 +58,21 @@ export const GameCanvas: React.FC = () => {
 
   const generateNewFood = useCallback(() => {
     const newFoodPos = foodRef.current.generate(snakeRef.current.body);
-    const newFoodType = foodRef.current.getRandomType(snake.body.length * 10);
+    const newFoodType = foodRef.current.getRandomType(snakeRef.current.body.length * 10);
     dispatch(setFood({ position: newFoodPos, type: newFoodType }));
-  }, [dispatch, snake.body.length]);
+  }, [dispatch]);
 
   const handleGameUpdate = useCallback(() => {
     if (!rendererRef.current) return;
 
-    snakeRef.current.direction = snake.direction;
+    snakeRef.current.direction = directionRef.current;
     snakeRef.current.move();
 
     if (
       snakeRef.current.checkWallCollision() ||
       snakeRef.current.checkSelfCollision()
     ) {
-      if (!snake.isShielded) {
+      if (!isShieldedRef.current) {
         gameLoopRef.current?.stop();
         dispatch(setPlaying(false));
         return;
@@ -66,10 +82,11 @@ export const GameCanvas: React.FC = () => {
     dispatch(updateSnakeBody(snakeRef.current.body));
 
     const head = snakeRef.current.getHead();
-    if (Collision.checkFoodCollision(head, food.current.position)) {
+    const currentFood = foodStateRef.current;
+    if (Collision.checkFoodCollision(head, currentFood.current.position)) {
       dispatch(growSnake());
       snakeRef.current.grow();
-      dispatch(addScore(food.current.type === FoodType.STAR ? 50 : 10));
+      dispatch(addScore(currentFood.current.type === FoodType.STAR ? 50 : 10));
       dispatch(incrementFoodEaten());
       generateNewFood();
     }
@@ -81,26 +98,19 @@ export const GameCanvas: React.FC = () => {
       theme,
     );
     rendererRef.current.drawFood(
-      food.current.position.x,
-      food.current.position.y,
-      food.current.type,
+      currentFood.current.position.x,
+      currentFood.current.position.y,
+      currentFood.current.type,
     );
 
-    if (food.special) {
+    if (currentFood.special) {
       rendererRef.current.drawFood(
-        food.special.position.x,
-        food.special.position.y,
-        food.special.type,
+        currentFood.special.position.x,
+        currentFood.special.position.y,
+        currentFood.special.type,
       );
     }
-  }, [
-    dispatch,
-    food,
-    generateNewFood,
-    snake.direction,
-    snake.isShielded,
-    theme,
-  ]);
+  }, [dispatch, generateNewFood, theme]);
 
   useEffect(() => {
     if (isPlaying && !isPaused) {

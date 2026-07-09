@@ -1,4 +1,4 @@
-export const GRID_SIZE = 60;
+export const GRID_SIZE = 100;
 export const CELL_SIZE = 16;
 export const VIEWPORT_CELLS = 20;
 export const INITIAL_SNAKE_LENGTH = 3;

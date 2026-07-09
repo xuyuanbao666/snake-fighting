@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { View, PanResponder, StyleSheet, TouchableOpacity, Text, Dimensions } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import Orientation from 'react-native-orientation-locker';
 import { RootState } from '../store';
 import {
   growSnake,
@@ -12,6 +13,7 @@ import {
   setPlaying,
   setPaused,
   updateSnakeBody,
+  toggleOrientation,
   DIFFICULTY_CONFIG,
 } from '../store/gameSlice';
 import { Snake } from '../engine/Snake';
@@ -46,7 +48,7 @@ export const GameCanvas: React.FC = () => {
   const trapManagerRef = useRef<TrapManager>(new TrapManager());
   const poisonFogRef = useRef<PoisonFog | null>(null);
 
-  const { snake, foods, isPlaying, isPaused, theme, difficulty } = useSelector(
+  const { snake, foods, isPlaying, isPaused, theme, difficulty, orientation } = useSelector(
     (state: RootState) => state.game,
   );
 
@@ -404,6 +406,17 @@ export const GameCanvas: React.FC = () => {
 
   const handlePauseToggle = useCallback(() => { dispatch(setPaused(!isPaused)); }, [dispatch, isPaused]);
   const handleBackToLobby = useCallback(() => { gameLoopRef.current?.stop(); dispatch(setPlaying(false)); dispatch(setPaused(false)); }, [dispatch]);
+  const handleOrientationToggle = useCallback(() => {
+    dispatch(toggleOrientation());
+    // Apply the new orientation immediately
+    setTimeout(() => {
+      if (orientation === 'portrait') {
+        Orientation.lockToLandscape();
+      } else {
+        Orientation.lockToPortrait();
+      }
+    }, 50);
+  }, [dispatch, orientation]);
 
   const colors = THEME_COLORS[theme];
   const score = Math.max(0, snake.body.length - 5);
@@ -417,9 +430,14 @@ export const GameCanvas: React.FC = () => {
         <View style={[styles.scoreBox, { backgroundColor: 'rgba(255,255,255,0.85)' }]}>
           <Text style={[styles.scoreNum, { color: colors.snake }]}>{score}</Text>
         </View>
-        <TouchableOpacity style={[styles.iconBtn, { backgroundColor: colors.snake }]} onPress={handlePauseToggle}>
-          <Text style={styles.iconBtnText}>{isPaused ? '▶' : '⏸'}</Text>
-        </TouchableOpacity>
+        <View style={styles.topRightBtns}>
+          <TouchableOpacity style={[styles.iconBtn, { backgroundColor: '#666', marginRight: 8 }]} onPress={handleOrientationToggle}>
+            <Text style={styles.iconBtnText}>{orientation === 'portrait' ? '📺' : '📱'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.iconBtn, { backgroundColor: colors.snake }]} onPress={handlePauseToggle}>
+            <Text style={styles.iconBtnText}>{isPaused ? '▶' : '⏸'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.gameArea}>
@@ -484,6 +502,7 @@ export const GameCanvas: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 56, paddingBottom: 12 },
+  topRightBtns: { flexDirection: 'row', alignItems: 'center' },
   iconBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 },
   iconBtnText: { fontSize: 18, color: '#FFF', fontWeight: '700' },
   scoreBox: { paddingHorizontal: 24, paddingVertical: 8, borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },

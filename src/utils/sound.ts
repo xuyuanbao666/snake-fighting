@@ -12,10 +12,10 @@ export class SoundManager {
 
   private loadSounds(): void {
     const soundFiles = {
-      eat: 'eat.mp3',
-      special: 'special.mp3',
-      gameOver: 'game_over.mp3',
-      move: 'move.mp3',
+      eat: 'eat',
+      special: 'special',
+      gameOver: 'gameover',
+      move: 'move',
     };
 
     Object.entries(soundFiles).forEach(([key, file]) => {

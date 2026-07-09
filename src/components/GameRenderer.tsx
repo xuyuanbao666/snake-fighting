@@ -1,11 +1,19 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Dimensions, Animated } from 'react-native';
 import { CELL_SIZE, GRID_SIZE, VIEWPORT_CELLS, THEME_COLORS, Theme, FoodType, FOOD_CONFIG } from '../utils/constants';
 import { Position } from '../store/gameSlice';
 
-const { width: screenWidth } = Dimensions.get('window');
-const VIEWPORT_SIZE = Math.min(screenWidth - 32, VIEWPORT_CELLS * CELL_SIZE);
-const CELL_PX = VIEWPORT_SIZE / VIEWPORT_CELLS;
+function getViewportSize() {
+  const { width, height } = Dimensions.get('window');
+  // Use the smaller dimension to ensure the game board fits
+  const availableSize = Math.min(width, height) - 32;
+  return Math.min(availableSize, VIEWPORT_CELLS * CELL_SIZE);
+}
+
+function getCellPx() {
+  return getViewportSize() / VIEWPORT_CELLS;
+}
+
 const MINIMAP_SIZE = 80;
 const MINIMAP_SCALE = MINIMAP_SIZE / GRID_SIZE;
 
@@ -32,15 +40,15 @@ function isInViewport(x: number, y: number, offsetX: number, offsetY: number) {
          y >= offsetY - 1 && y <= offsetY + VIEWPORT_CELLS + 1;
 }
 
-const SnakeHead: React.FC<{ x: number; y: number; color: string }> = ({ x, y, color }) => {
-  const size = CELL_PX * 1.1;
+const SnakeHead: React.FC<{ x: number; y: number; color: string; cellPx: number }> = ({ x, y, color, cellPx }) => {
+  const size = cellPx * 1.1;
   return (
     <View
       style={[
         styles.head,
         {
-          left: x * CELL_PX - size / 2,
-          top: y * CELL_PX - size / 2,
+          left: x * cellPx - size / 2,
+          top: y * cellPx - size / 2,
           width: size,
           height: size,
           backgroundColor: color,
@@ -62,8 +70,8 @@ const SnakeSegment: React.FC<{ x: number; y: number; color: string; alpha: numbe
     style={[
       styles.segment,
       {
-        left: x * CELL_PX - radius,
-        top: y * CELL_PX - radius,
+        left: x * getCellPx() - radius,
+        top: y * getCellPx() - radius,
         width: radius * 2,
         height: radius * 2,
         backgroundColor: color,
@@ -74,24 +82,23 @@ const SnakeSegment: React.FC<{ x: number; y: number; color: string; alpha: numbe
   />
 );
 
-const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }> = ({ x, y, type, theme }) => {
+const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme; cellPx: number }> = ({ x, y, type, theme, cellPx }) => {
   const config = FOOD_CONFIG[type];
-  let size = CELL_PX * 0.7;
+  let size = cellPx * 0.7;
   let borderRadius = size / 2;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   if (type === 'STAR') {
-    size = CELL_PX * 0.7;
+    size = cellPx * 0.7;
   } else if (type === 'APPLE') {
-    size = CELL_PX * 0.8;
+    size = cellPx * 0.8;
   } else if (type === 'DIAMOND') {
-    size = CELL_PX * 0.9;
-    borderRadius = CELL_PX * 0.15;
+    size = cellPx * 0.9;
+    borderRadius = cellPx * 0.15;
   }
 
-  // Star: bright pulsing glow
   useEffect(() => {
     if (type === 'STAR') {
       const animation = Animated.loop(
@@ -105,7 +112,6 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
     }
   }, [type]);
 
-  // Apple: gentle pulse
   useEffect(() => {
     if (type === 'APPLE') {
       const animation = Animated.loop(
@@ -119,7 +125,6 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
     }
   }, [type]);
 
-  // Diamond: fast rotation + glow
   useEffect(() => {
     if (type === 'DIAMOND') {
       const animation = Animated.loop(
@@ -168,8 +173,8 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
       style={[
         styles.food,
         {
-          left: x * CELL_PX - size / 2,
-          top: y * CELL_PX - size / 2,
+          left: x * cellPx - size / 2,
+          top: y * cellPx - size / 2,
           width: size,
           height: size,
           backgroundColor: config.color,
@@ -272,9 +277,20 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
   const colors = THEME_COLORS[theme];
   const head = snakeBody[0];
   const { offsetX, offsetY } = getViewportOffset(head.x, head.y);
+  const [viewportSize, setViewportSize] = useState(getViewportSize());
+  const cellPx = viewportSize / VIEWPORT_CELLS;
+
+  // Listen for dimension changes (orientation)
+  useEffect(() => {
+    const onChange = () => {
+      setViewportSize(getViewportSize());
+    };
+    const subscription = Dimensions.addEventListener('change', onChange);
+    return () => subscription?.remove?.();
+  }, []);
 
   const snakeSegments = useMemo(() => {
-    const segRadius = CELL_PX * 0.4;
+    const segRadius = cellPx * 0.4;
     return snakeBody.map((segment, index) => {
       if (!isInViewport(segment.x, segment.y, offsetX, offsetY)) return null;
 
@@ -288,6 +304,7 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
             x={viewX}
             y={viewY}
             color={colors.snake}
+            cellPx={cellPx}
           />
         );
       }
@@ -304,7 +321,7 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
         />
       );
     });
-  }, [snakeBody, offsetX, offsetY, colors.snake]);
+  }, [snakeBody, offsetX, offsetY, colors.snake, cellPx]);
 
   const foodElements = useMemo(() => {
     return foods.map((food, i) => {
@@ -316,13 +333,14 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
           y={food.position.y - offsetY}
           type={food.type}
           theme={theme}
+          cellPx={cellPx}
         />
       );
     }).filter(Boolean);
-  }, [foods, offsetX, offsetY, theme]);
+  }, [foods, offsetX, offsetY, theme, cellPx]);
 
   const aiSnakeElements = useMemo(() => {
-    const segRadius = CELL_PX * 0.35;
+    const segRadius = cellPx * 0.35;
     const elements: React.ReactNode[] = [];
     for (const ai of aiSnakes) {
       for (let i = 0; i < ai.body.length; i++) {
@@ -334,7 +352,7 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
         const r = segRadius * (1 - i / ai.body.length * 0.3);
         if (i === 0) {
           elements.push(
-            <SnakeHead key={`ai-${ai.name}-head`} x={viewX} y={viewY} color={ai.color} />
+            <SnakeHead key={`ai-${ai.name}-head`} x={viewX} y={viewY} color={ai.color} cellPx={cellPx} />
           );
         } else {
           elements.push(
@@ -344,17 +362,17 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
       }
     }
     return elements;
-  }, [aiSnakes, offsetX, offsetY]);
+  }, [aiSnakes, offsetX, offsetY, cellPx]);
 
   return (
     <View>
-      <View style={[styles.board, { backgroundColor: colors.background, width: VIEWPORT_SIZE, height: VIEWPORT_SIZE }]}>
+      <View style={[styles.board, { backgroundColor: colors.background, width: viewportSize, height: viewportSize }]}>
         <View style={[styles.gridOverlay, { borderColor: colors.snake + '15' }]}>
           {Array.from({ length: VIEWPORT_CELLS - 1 }).map((_, i) => (
-            <View key={`h${i}`} style={[styles.gridLineH, { top: (i + 1) * CELL_PX }]} />
+            <View key={`h${i}`} style={[styles.gridLineH, { top: (i + 1) * cellPx }]} />
           ))}
           {Array.from({ length: VIEWPORT_CELLS - 1 }).map((_, i) => (
-            <View key={`v${i}`} style={[styles.gridLineV, { left: (i + 1) * CELL_PX }]} />
+            <View key={`v${i}`} style={[styles.gridLineV, { left: (i + 1) * cellPx }]} />
           ))}
         </View>
         {snakeSegments}
@@ -363,9 +381,9 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
         {/* Traps */}
         {traps.map((trap, i) => {
           if (!isInViewport(trap.x, trap.y, offsetX, offsetY)) return null;
-          const viewX = (trap.x - offsetX) * CELL_PX;
-          const viewY = (trap.y - offsetY) * CELL_PX;
-          const size = trap.radius * CELL_PX * 2;
+          const viewX = (trap.x - offsetX) * cellPx;
+          const viewY = (trap.y - offsetY) * cellPx;
+          const size = trap.radius * cellPx * 2;
           let color = '#FF5722';
           if (trap.type === 'poison') color = '#9C27B0';
           if (trap.type === 'slow') color = '#FF9800';
@@ -390,21 +408,17 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
         {/* Poison Fog */}
         {fog && (
           <>
-            {/* Top fog */}
             {fog.minY > 0 && (
-              <View style={[styles.fogZone, { top: 0, left: 0, right: 0, height: (fog.minY - offsetY) * CELL_PX }]} />
+              <View style={[styles.fogZone, { top: 0, left: 0, right: 0, height: (fog.minY - offsetY) * cellPx }]} />
             )}
-            {/* Bottom fog */}
             {fog.maxY < GRID_SIZE && (
-              <View style={[styles.fogZone, { bottom: 0, left: 0, right: 0, height: (GRID_SIZE - fog.maxY - offsetY) * CELL_PX }]} />
+              <View style={[styles.fogZone, { bottom: 0, left: 0, right: 0, height: (GRID_SIZE - fog.maxY - offsetY) * cellPx }]} />
             )}
-            {/* Left fog */}
             {fog.minX > 0 && (
-              <View style={[styles.fogZone, { top: 0, left: 0, width: (fog.minX - offsetX) * CELL_PX, bottom: 0 }]} />
+              <View style={[styles.fogZone, { top: 0, left: 0, width: (fog.minX - offsetX) * cellPx, bottom: 0 }]} />
             )}
-            {/* Right fog */}
             {fog.maxX < GRID_SIZE && (
-              <View style={[styles.fogZone, { top: 0, right: 0, width: (GRID_SIZE - fog.maxX - offsetX) * CELL_PX, bottom: 0 }]} />
+              <View style={[styles.fogZone, { top: 0, right: 0, width: (GRID_SIZE - fog.maxX - offsetX) * cellPx, bottom: 0 }]} />
             )}
           </>
         )}

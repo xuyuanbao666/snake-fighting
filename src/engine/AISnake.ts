@@ -240,7 +240,7 @@ export function createAISnakes(count: number, config: AIConfig): AISnake[] {
   const snakes: AISnake[] = [];
   for (let i = 0; i < count; i++) {
     const angle = (i / count) * Math.PI * 2;
-    const dist = 12;
+    const dist = 18;
     const x = GRID_SIZE / 2 + Math.cos(angle) * dist;
     const y = GRID_SIZE / 2 + Math.sin(angle) * dist;
     snakes.push(new AISnake(names[i] || `AI${i}`, AI_COLORS[i % AI_COLORS.length], x, y, config));

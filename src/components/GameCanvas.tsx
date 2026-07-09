@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { View, PanResponder, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { View, PanResponder, StyleSheet, TouchableOpacity, Text, Dimensions } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import {
@@ -16,9 +16,11 @@ import { Snake } from '../engine/Snake';
 import { Food } from '../engine/Food';
 import { Collision } from '../engine/Collision';
 import { GameLoop } from '../engine/GameLoop';
-import { FoodType } from '../utils/constants';
+import { FoodType, THEME_COLORS } from '../utils/constants';
 import { soundManager } from '../utils/sound';
 import { GameRenderer } from './GameRenderer';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 export const GameCanvas: React.FC = () => {
   const dispatch = useDispatch();
@@ -165,38 +167,48 @@ export const GameCanvas: React.FC = () => {
     dispatch(setPaused(false));
   }, [dispatch]);
 
+  const colors = THEME_COLORS[theme];
+  const score = snake.body.length - 3;
+
   return (
-    <View style={styles.container} {...panResponder.panHandlers}>
+    <View style={[styles.container, { backgroundColor: colors.background }]} {...panResponder.panHandlers}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconButton} onPress={handleBackToLobby}>
-          <Text style={styles.iconText}>←</Text>
+        <TouchableOpacity style={[styles.iconBtn, { backgroundColor: colors.snake }]} onPress={handleBackToLobby}>
+          <Text style={styles.iconBtnText}>✕</Text>
         </TouchableOpacity>
-        <View style={styles.scoreContainer}>
-          <Text style={styles.scoreLabel}>分数</Text>
-          <Text style={styles.scoreValue}>{snake.body.length - 3}</Text>
+
+        <View style={[styles.scoreBox, { backgroundColor: 'rgba(255,255,255,0.85)' }]}>
+          <Text style={[styles.scoreNum, { color: colors.snake }]}>{score}</Text>
         </View>
-        <TouchableOpacity style={styles.iconButton} onPress={handlePauseToggle}>
-          <Text style={styles.iconText}>{isPaused ? '▶' : '⏸'}</Text>
+
+        <TouchableOpacity style={[styles.iconBtn, { backgroundColor: colors.snake }]} onPress={handlePauseToggle}>
+          <Text style={styles.iconBtnText}>{isPaused ? '▶' : '⏸'}</Text>
         </TouchableOpacity>
       </View>
 
-      <GameRenderer
-        snakeBody={snake.body}
-        foodPosition={food.current.position}
-        foodType={food.current.type}
-        specialFood={food.special}
-        theme={theme}
-      />
+      <View style={styles.gameArea}>
+        <GameRenderer
+          snakeBody={snake.body}
+          foodPosition={food.current.position}
+          foodType={food.current.type}
+          specialFood={food.special}
+          theme={theme}
+        />
+      </View>
 
       {isPaused && (
         <View style={styles.pauseOverlay}>
-          <View style={styles.pauseCard}>
+          <View style={[styles.pauseCard, { backgroundColor: '#FFF' }]}>
+            <Text style={styles.pauseEmoji}>⏸</Text>
             <Text style={styles.pauseTitle}>暂停</Text>
-            <TouchableOpacity style={styles.resumeButton} onPress={handlePauseToggle}>
-              <Text style={styles.resumeText}>继续游戏</Text>
+            <TouchableOpacity
+              style={[styles.pauseBtn, { backgroundColor: colors.snake }]}
+              onPress={handlePauseToggle}
+            >
+              <Text style={styles.pauseBtnText}>继续游戏</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.lobbyButton} onPress={handleBackToLobby}>
-              <Text style={styles.lobbyText}>返回大厅</Text>
+            <TouchableOpacity style={styles.lobbyBtn} onPress={handleBackToLobby}>
+              <Text style={[styles.lobbyBtnText, { color: '#999' }]}>返回大厅</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -208,40 +220,50 @@ export const GameCanvas: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E8F5E9',
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingTop: 56,
+    paddingBottom: 12,
   },
-  iconButton: {
+  iconBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(76, 175, 80, 0.8)',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  iconText: {
-    fontSize: 20,
+  iconBtnText: {
+    fontSize: 18,
     color: '#FFF',
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
-  scoreContainer: {
-    alignItems: 'center',
+  scoreBox: {
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  scoreLabel: {
-    fontSize: 12,
-    color: '#666',
-  },
-  scoreValue: {
+  scoreNum: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '800',
+  },
+  gameArea: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pauseOverlay: {
     position: 'absolute',
@@ -249,45 +271,50 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   pauseCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 30,
+    borderRadius: 24,
+    paddingVertical: 36,
+    paddingHorizontal: 32,
     alignItems: 'center',
-    minWidth: 200,
+    width: screenWidth * 0.75,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  pauseEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
   },
   pauseTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '700',
     color: '#333',
-    marginBottom: 24,
+    marginBottom: 28,
   },
-  resumeButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginBottom: 12,
+  pauseBtn: {
     width: '100%',
+    height: 50,
+    borderRadius: 25,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
-  resumeText: {
+  pauseBtnText: {
     color: '#FFF',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
-  lobbyButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    width: '100%',
-    alignItems: 'center',
+  lobbyBtn: {
+    paddingVertical: 10,
   },
-  lobbyText: {
-    color: '#666',
-    fontSize: 16,
+  lobbyBtnText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
 });

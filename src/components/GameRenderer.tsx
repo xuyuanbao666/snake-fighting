@@ -1,7 +1,11 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import { CELL_SIZE, GRID_SIZE, THEME_COLORS, Theme, FoodType } from '../utils/constants';
 import { Position } from '../store/gameSlice';
+
+const { width: screenWidth } = Dimensions.get('window');
+const GAME_BOARD_SIZE = Math.min(screenWidth - 32, GRID_SIZE * CELL_SIZE);
+const SCALE = GAME_BOARD_SIZE / (GRID_SIZE * CELL_SIZE);
 
 interface GameRendererProps {
   snakeBody: Position[];
@@ -14,60 +18,65 @@ interface GameRendererProps {
 const SnakeHead: React.FC<{ x: number; y: number; color: string }> = ({ x, y, color }) => (
   <View
     style={[
-      styles.cell,
+      styles.head,
       {
-        left: x * CELL_SIZE,
-        top: y * CELL_SIZE,
+        left: x * CELL_SIZE * SCALE,
+        top: y * CELL_SIZE * SCALE,
+        width: CELL_SIZE * SCALE,
+        height: CELL_SIZE * SCALE,
         backgroundColor: color,
-        borderRadius: CELL_SIZE / 2,
       },
     ]}
   >
-    <View style={[styles.eye, { left: CELL_SIZE * 0.2, top: CELL_SIZE * 0.2 }]} />
-    <View style={[styles.eye, { left: CELL_SIZE * 0.6, top: CELL_SIZE * 0.2 }]} />
+    <View style={[styles.eye, { top: CELL_SIZE * SCALE * 0.18, left: CELL_SIZE * SCALE * 0.18 }]} />
+    <View style={[styles.eye, { top: CELL_SIZE * SCALE * 0.18, left: CELL_SIZE * SCALE * 0.58 }]} />
+    <View style={[styles.eyePupil, { top: CELL_SIZE * SCALE * 0.22, left: CELL_SIZE * SCALE * 0.22 }]} />
+    <View style={[styles.eyePupil, { top: CELL_SIZE * SCALE * 0.22, left: CELL_SIZE * SCALE * 0.62 }]} />
   </View>
 );
 
-const SnakeSegment: React.FC<{ x: number; y: number; color: string; alpha: number }> = ({
-  x, y, color, alpha,
+const SnakeSegment: React.FC<{ x: number; y: number; color: string; alpha: number; isLast: boolean }> = ({
+  x, y, color, alpha, isLast,
 }) => (
   <View
     style={[
-      styles.cell,
+      styles.segment,
       {
-        left: x * CELL_SIZE,
-        top: y * CELL_SIZE,
+        left: x * CELL_SIZE * SCALE + 1,
+        top: y * CELL_SIZE * SCALE + 1,
+        width: CELL_SIZE * SCALE - 2,
+        height: CELL_SIZE * SCALE - 2,
         backgroundColor: color,
         opacity: alpha,
-        borderRadius: 3,
+        borderRadius: isLast ? (CELL_SIZE * SCALE) / 2 : 4,
       },
     ]}
   />
 );
 
-const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }> = ({
-  x, y, type, theme,
-}) => {
+const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }> = ({ x, y, type, theme }) => {
   const colors = THEME_COLORS[theme];
-  let bgColor = colors.food;
-  let shape: 'circle' | 'star' | 'diamond' = 'circle';
+  let bgColor: string;
+  let size = CELL_SIZE * SCALE * 0.7;
+  let borderRadius = size / 2;
 
   switch (type) {
     case FoodType.STAR:
-      bgColor = colors.special;
-      shape = 'star';
+      bgColor = '#FFD700';
       break;
     case FoodType.ROCKET:
       bgColor = '#FF5722';
-      shape = 'diamond';
+      borderRadius = 4;
       break;
     case FoodType.SHIELD:
       bgColor = '#2196F3';
-      shape = 'diamond';
+      borderRadius = 6;
       break;
     case FoodType.MAGNET:
       bgColor = '#E91E63';
-      shape = 'circle';
+      break;
+    default:
+      bgColor = colors.food;
       break;
   }
 
@@ -76,14 +85,18 @@ const FoodItem: React.FC<{ x: number; y: number; type: FoodType; theme: Theme }>
       style={[
         styles.food,
         {
-          left: x * CELL_SIZE,
-          top: y * CELL_SIZE,
+          left: x * CELL_SIZE * SCALE + (CELL_SIZE * SCALE - size) / 2,
+          top: y * CELL_SIZE * SCALE + (CELL_SIZE * SCALE - size) / 2,
+          width: size,
+          height: size,
           backgroundColor: bgColor,
-          borderRadius: shape === 'circle' ? CELL_SIZE / 2 : shape === 'star' ? 2 : 4,
-          transform: shape === 'diamond' ? [{ rotate: '45deg' }] : [],
+          borderRadius,
         },
       ]}
-    />
+    >
+      {type === FoodType.NORMAL && <View style={styles.foodLeaf} />}
+      {type === FoodType.STAR && <View style={styles.foodGlow} />}
+    </View>
   );
 };
 
@@ -108,20 +121,30 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
           />
         );
       }
+      const alpha = Math.max(0.4, 1 - (index / snakeBody.length) * 0.6);
       return (
         <SnakeSegment
           key={index}
           x={segment.x}
           y={segment.y}
           color={colors.snake}
-          alpha={1 - (index / snakeBody.length) * 0.5}
+          alpha={alpha}
+          isLast={index === snakeBody.length - 1}
         />
       );
     });
   }, [snakeBody, colors.snake]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.board, { backgroundColor: colors.background, width: GAME_BOARD_SIZE, height: GAME_BOARD_SIZE }]}>
+      <View style={[styles.gridOverlay, { borderColor: colors.snake + '20' }]}>
+        {Array.from({ length: GRID_SIZE - 1 }).map((_, i) => (
+          <View key={`h${i}`} style={[styles.gridLineH, { top: (i + 1) * CELL_SIZE * SCALE }]} />
+        ))}
+        {Array.from({ length: GRID_SIZE - 1 }).map((_, i) => (
+          <View key={`v${i}`} style={[styles.gridLineV, { left: (i + 1) * CELL_SIZE * SCALE }]} />
+        ))}
+      </View>
       {snakeSegments}
       <FoodItem x={foodPosition.x} y={foodPosition.y} type={foodType} theme={theme} />
       {specialFood && (
@@ -137,29 +160,90 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    width: GRID_SIZE * CELL_SIZE,
-    height: GRID_SIZE * CELL_SIZE,
+  board: {
+    borderRadius: 16,
+    overflow: 'hidden',
     position: 'relative',
-    borderWidth: 2,
-    borderColor: '#4CAF50',
-    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  cell: {
+  gridOverlay: {
     position: 'absolute',
-    width: CELL_SIZE - 1,
-    height: CELL_SIZE - 1,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderWidth: 1,
+    borderRadius: 16,
+  },
+  gridLineH: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+  },
+  gridLineV: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+  },
+  head: {
+    position: 'absolute',
+    borderRadius: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   eye: {
     position: 'absolute',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#FFFFFF',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFF',
+  },
+  eyePupil: {
+    position: 'absolute',
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#333',
+  },
+  segment: {
+    position: 'absolute',
   },
   food: {
     position: 'absolute',
-    width: CELL_SIZE - 2,
-    height: CELL_SIZE - 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  foodLeaf: {
+    position: 'absolute',
+    top: -4,
+    right: -2,
+    width: 8,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4CAF50',
+    transform: [{ rotate: '30deg' }],
+  },
+  foodGlow: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 215, 0, 0.3)',
   },
 });

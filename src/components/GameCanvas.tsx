@@ -29,8 +29,8 @@ import { GameRenderer } from './GameRenderer';
 import { RealtimeRanking } from './RealtimeRanking';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const JOYSTICK_SIZE = 110;
-const JOYSTICK_KNOB_SIZE = 44;
+const JOYSTICK_RADIUS = 60;
+const KNOB_RADIUS = 22;
 
 const FOOD_LIMITS = {
   [FoodType.STAR]: { min: 5, max: 8 },
@@ -62,26 +62,25 @@ export const GameCanvas: React.FC = () => {
   const activeBuffsRef = useRef<ActiveBuff[]>([]);
   const baseSpeedRef = useRef(0.15);
 
-  const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 });
-  const [joystickActive, setJoystickActive] = useState(false);
+  // Floating joystick state
+  const [joystickCenter, setJoystickCenter] = useState({ x: 0, y: 0 });
+  const [joystickKnob, setJoystickKnob] = useState({ x: 0, y: 0 });
+  const [joystickVisible, setJoystickVisible] = useState(false);
 
   useEffect(() => { foodsRef.current = foods; }, [foods]);
   useEffect(() => { isShieldedRef.current = snake.isShielded; }, [snake.isShielded]);
 
-  const getAllOccupiedPositions = useCallback(() => {
-    return [
-      ...snakeRef.current.body.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) })),
-      ...aiSnakesRef.current.filter(s => s.alive).flatMap(s => s.body.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }))),
-      ...foodsRef.current.map(f => f.position),
-    ];
-  }, []);
+  const getAllOccupiedPositions = useCallback(() => [
+    ...snakeRef.current.body.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) })),
+    ...aiSnakesRef.current.filter(s => s.alive).flatMap(s => s.body.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }))),
+    ...foodsRef.current.map(f => f.position),
+  ], []);
 
   const spawnFoods = useCallback(() => {
     const occupied = getAllOccupiedPositions();
     const newFoods: { position: { x: number; y: number }; type: FoodType }[] = [];
     const counts = { [FoodType.STAR]: 0, [FoodType.APPLE]: 0, [FoodType.DIAMOND]: 0 };
     for (const f of foodsRef.current) counts[f.type]++;
-
     for (const [type, limits] of Object.entries(FOOD_LIMITS)) {
       const foodType = type as FoodType;
       const target = limits.min + Math.floor(Math.random() * (limits.max - limits.min + 1));
@@ -100,11 +99,10 @@ export const GameCanvas: React.FC = () => {
   useEffect(() => { spawnFoodsRef.current = spawnFoods; }, [spawnFoods]);
 
   const updateRanking = useCallback(() => {
-    const entries = [
+    setRankingData([
       { name: '你', length: snakeRef.current.body.length, color: THEME_COLORS[theme].snake, isPlayer: true },
       ...aiSnakesRef.current.filter(s => s.alive).map(s => ({ name: s.name, length: s.getLength(), color: s.color, isPlayer: false })),
-    ];
-    setRankingData(entries);
+    ]);
   }, [theme]);
 
   const handleGameUpdate = useCallback(() => {
@@ -114,33 +112,23 @@ export const GameCanvas: React.FC = () => {
     if (isImpossible && poisonFogRef.current) {
       poisonFogRef.current.update();
       trapManagerRef.current.update(snakeRef.current.body, aiSnakesRef.current.filter(s => s.alive).map(s => s.body));
-
       const head = snakeRef.current.getHead();
       if (!poisonFogRef.current.isInSafeZone(head)) {
         gameLoopRef.current?.stop();
         const score = Math.max(0, snakeRef.current.body.length - 5);
         Storage.addToLeaderboard({ score, length: snakeRef.current.body.length, date: new Date().toISOString(), theme });
-        dispatch(setPlaying(false));
-        soundManager.play('gameOver');
-        return;
+        dispatch(setPlaying(false)); soundManager.play('gameOver'); return;
       }
-
       const hitTrap = trapManagerRef.current.checkCollision(head);
       if (hitTrap) {
         if (hitTrap.type === 'spike') {
           gameLoopRef.current?.stop();
           const score = Math.max(0, snakeRef.current.body.length - 5);
           Storage.addToLeaderboard({ score, length: snakeRef.current.body.length, date: new Date().toISOString(), theme });
-          dispatch(setPlaying(false));
-          soundManager.play('gameOver');
-          return;
-        } else if (hitTrap.type === 'slow') {
-          baseSpeedRef.current = Math.min(0.25, baseSpeedRef.current + 0.02);
-        } else if (hitTrap.type === 'poison') {
-          if (snakeRef.current.body.length > 5) { snakeRef.current.body.pop(); snakeRef.current.body.pop(); }
-        }
+          dispatch(setPlaying(false)); soundManager.play('gameOver'); return;
+        } else if (hitTrap.type === 'slow') { baseSpeedRef.current = Math.min(0.25, baseSpeedRef.current + 0.02); }
+        else if (hitTrap.type === 'poison' && snakeRef.current.body.length > 5) { snakeRef.current.body.pop(); snakeRef.current.body.pop(); }
       }
-
       setTrapsData(trapManagerRef.current.traps.filter(t => t.active).map(t => ({ x: t.position.x, y: t.position.y, type: t.type, radius: t.radius })));
       setFogData({ minX: poisonFogRef.current.minX, minY: poisonFogRef.current.minY, maxX: poisonFogRef.current.maxX, maxY: poisonFogRef.current.maxY });
     }
@@ -151,55 +139,37 @@ export const GameCanvas: React.FC = () => {
       if (isImpossible) {
         const aiHead = ai.getHead();
         const nearTrap = trapManagerRef.current.traps.find(t => t.active && Math.abs(t.position.x - aiHead.x) < 3 && Math.abs(t.position.y - aiHead.y) < 3);
-        if (nearTrap) {
-          const dx = aiHead.x - nearTrap.position.x;
-          const dy = aiHead.y - nearTrap.position.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          ai.velocityX = dx / dist;
-          ai.velocityY = dy / dist;
-        }
+        if (nearTrap) { const dx = aiHead.x - nearTrap.position.x; const dy = aiHead.y - nearTrap.position.y; const dist = Math.sqrt(dx * dx + dy * dy) || 1; ai.velocityX = dx / dist; ai.velocityY = dy / dist; }
       }
-
       ai.update(foodPositions, snakeRef.current.getHead(), snakeRef.current.body);
-
       const aiHead = { x: Math.round(ai.getHead().x), y: Math.round(ai.getHead().y) };
       for (let fi = 0; fi < currentFoods.length; fi++) {
         if (Collision.checkFoodCollision(aiHead, currentFoods[fi].position)) {
           const foodConfig = FOOD_CONFIG[currentFoods[fi].type];
           for (let g = 0; g < foodConfig.growth; g++) ai.grow();
-          dispatch(removeFood(fi));
-          break;
+          dispatch(removeFood(fi)); break;
         }
       }
-
       const aiHeadPos = ai.getHead();
       for (let pi = 1; pi < snakeRef.current.body.length; pi++) {
         const seg = snakeRef.current.body[pi];
-        const dx = aiHeadPos.x - seg.x;
-        const dy = aiHeadPos.y - seg.y;
-        if (dx * dx + dy * dy < 0.8) {
+        if ((aiHeadPos.x - seg.x) ** 2 + (aiHeadPos.y - seg.y) ** 2 < 0.8) {
           ai.alive = false;
           const buffType = getRandomBuff();
           activeBuffsRef.current.push({ type: buffType, duration: BUFF_CONFIG[buffType].duration, startTime: Date.now() });
           setActiveBuffs([...activeBuffsRef.current]);
-          setKillFeed(prev => [...prev.slice(-4), { text: `击杀 ${ai.name}! ${BUFF_CONFIG[buffType].emoji} ${BUFF_CONFIG[buffType].label}`, time: Date.now() }]);
-          break;
+          setKillFeed(prev => [...prev.slice(-4), { text: `击杀 ${ai.name}! ${BUFF_CONFIG[buffType].emoji} ${BUFF_CONFIG[buffType].label}`, time: Date.now() }]); break;
         }
       }
-
       if (ai.alive) {
         for (const otherAi of aiSnakesRef.current) {
           if (otherAi === ai || !otherAi.alive) continue;
           for (let pi = 0; pi < otherAi.body.length; pi++) {
-            const seg = otherAi.body[pi];
-            const dx = aiHeadPos.x - seg.x;
-            const dy = aiHeadPos.y - seg.y;
-            if (dx * dx + dy * dy < 0.8) { ai.alive = false; break; }
+            if ((aiHeadPos.x - otherAi.body[pi].x) ** 2 + (aiHeadPos.y - otherAi.body[pi].y) ** 2 < 0.8) { ai.alive = false; break; }
           }
           if (!ai.alive) break;
         }
       }
-
       if (ai.justDied) {
         const buffType = getRandomBuff();
         activeBuffsRef.current.push({ type: buffType, duration: BUFF_CONFIG[buffType].duration, startTime: Date.now() });
@@ -210,7 +180,6 @@ export const GameCanvas: React.FC = () => {
 
     activeBuffsRef.current = activeBuffsRef.current.map(b => ({ ...b, duration: b.duration - 1 })).filter(b => b.duration > 0);
     setActiveBuffs([...activeBuffsRef.current]);
-
     const hasShield = activeBuffsRef.current.some(b => b.type === 'shield');
     const hasSpeed = activeBuffsRef.current.some(b => b.type === 'speed');
     const hasDoubleScore = activeBuffsRef.current.some(b => b.type === 'doubleScore');
@@ -218,41 +187,27 @@ export const GameCanvas: React.FC = () => {
     snakeRef.current.speed = hasSpeed ? baseSpeedRef.current * 1.5 : baseSpeedRef.current;
 
     snakeRef.current.move();
-
-    if (snakeRef.current.checkWallCollision()) {
-      if (!isShieldedRef.current) {
-        gameLoopRef.current?.stop();
-        const score = Math.max(0, snakeRef.current.body.length - 5);
-        Storage.addToLeaderboard({ score, length: snakeRef.current.body.length, date: new Date().toISOString(), theme });
-        dispatch(setPlaying(false));
-        soundManager.play('gameOver');
-        return;
-      }
+    if (snakeRef.current.checkWallCollision() && !isShieldedRef.current) {
+      gameLoopRef.current?.stop();
+      const score = Math.max(0, snakeRef.current.body.length - 5);
+      Storage.addToLeaderboard({ score, length: snakeRef.current.body.length, date: new Date().toISOString(), theme });
+      dispatch(setPlaying(false)); soundManager.play('gameOver'); return;
     }
 
     const playerHead = snakeRef.current.getHead();
     for (const ai of aiSnakesRef.current) {
       if (!ai.alive) continue;
       for (let pi = 0; pi < ai.body.length; pi++) {
-        const seg = ai.body[pi];
-        const dx = playerHead.x - seg.x;
-        const dy = playerHead.y - seg.y;
-        if (dx * dx + dy * dy < 0.8) {
-          if (!isShieldedRef.current) {
-            gameLoopRef.current?.stop();
-            const score = Math.max(0, snakeRef.current.body.length - 5);
-            Storage.addToLeaderboard({ score, length: snakeRef.current.body.length, date: new Date().toISOString(), theme });
-            dispatch(setPlaying(false));
-            soundManager.play('gameOver');
-            return;
-          }
+        if ((playerHead.x - ai.body[pi].x) ** 2 + (playerHead.y - ai.body[pi].y) ** 2 < 0.8 && !isShieldedRef.current) {
+          gameLoopRef.current?.stop();
+          const score = Math.max(0, snakeRef.current.body.length - 5);
+          Storage.addToLeaderboard({ score, length: snakeRef.current.body.length, date: new Date().toISOString(), theme });
+          dispatch(setPlaying(false)); soundManager.play('gameOver'); return;
         }
       }
     }
 
-    const bodyCopy = snakeRef.current.body.map(p => ({ x: p.x, y: p.y }));
-    dispatch(updateSnakeBody(bodyCopy));
-
+    dispatch(updateSnakeBody(snakeRef.current.body.map(p => ({ x: p.x, y: p.y }))));
     const head = snakeRef.current.getHead();
     const headGrid = { x: Math.round(head.x), y: Math.round(head.y) };
     let ate = false;
@@ -260,18 +215,12 @@ export const GameCanvas: React.FC = () => {
       if (Collision.checkFoodCollision(headGrid, currentFoods[fi].position)) {
         const foodConfig = FOOD_CONFIG[currentFoods[fi].type];
         for (let g = 0; g < foodConfig.growth; g++) { snakeRef.current.grow(); dispatch(growSnake()); }
-        const finalScore = hasDoubleScore ? foodConfig.points * 2 : foodConfig.points;
-        dispatch(addScore(finalScore));
-        dispatch(incrementFoodEaten());
-        soundManager.play('eat');
-        dispatch(removeFood(fi));
-        ate = true;
-        break;
+        dispatch(addScore(hasDoubleScore ? foodConfig.points * 2 : foodConfig.points));
+        dispatch(incrementFoodEaten()); soundManager.play('eat');
+        dispatch(removeFood(fi)); ate = true; break;
       }
     }
-
     if (ate || currentFoods.length < 5) spawnFoodsRef.current();
-
     setAiSnakesData(aiSnakesRef.current.filter(s => s.alive).map(s => ({ body: s.body.map(p => ({ ...p })), color: s.color, name: s.name })));
     updateRanking();
   }, [dispatch, theme, updateRanking, difficulty]);
@@ -287,58 +236,56 @@ export const GameCanvas: React.FC = () => {
     const wasPaused = prevIsPaused.current;
     prevIsPlaying.current = isPlaying;
     prevIsPaused.current = isPaused;
-
     if (!isPlaying) { gameLoopRef.current?.stop(); return; }
     if (isPaused) { gameLoopRef.current?.stop(); return; }
-
-    const isNewGame = !wasPlaying;
-    if (isNewGame) {
+    if (!wasPlaying) {
       const diffConfig = DIFFICULTY_CONFIG[difficulty];
       snakeRef.current = new Snake();
       snakeRef.current.speed = diffConfig.playerSpeed;
       baseSpeedRef.current = diffConfig.playerSpeed;
       aiSnakesRef.current = createAISnakes(diffConfig.aiCount, { speed: diffConfig.aiSpeed, intelligence: diffConfig.aiIntelligence });
-
-      if (difficulty === 'impossible') {
-        trapManagerRef.current = new TrapManager();
-        poisonFogRef.current = new PoisonFog();
-      } else {
-        poisonFogRef.current = null;
-        setTrapsData([]);
-        setFogData(null);
-      }
-
-      activeBuffsRef.current = [];
-      setActiveBuffs([]);
-      setKillFeed([]);
-
-      const bodyCopy = snakeRef.current.body.map(p => ({ x: p.x, y: p.y }));
-      dispatch(updateSnakeBody(bodyCopy));
+      if (difficulty === 'impossible') { trapManagerRef.current = new TrapManager(); poisonFogRef.current = new PoisonFog(); }
+      else { poisonFogRef.current = null; setTrapsData([]); setFogData(null); }
+      activeBuffsRef.current = []; setActiveBuffs([]); setKillFeed([]);
+      dispatch(updateSnakeBody(snakeRef.current.body.map(p => ({ x: p.x, y: p.y }))));
       spawnFoodsRef.current();
     }
-
     gameLoopRef.current?.stop();
     gameLoopRef.current = new GameLoop(() => handleGameUpdateRef.current(), 16);
     gameLoopRef.current.start();
-
     return () => { gameLoopRef.current?.stop(); };
   }, [isPlaying, isPaused, dispatch, difficulty]);
 
+  // Floating joystick - appears where finger touches
   const joystickPanResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: (evt) => {
+        // Only capture touches in the bottom half of screen
+        return evt.nativeEvent.pageY > screenHeight * 0.4;
+      },
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => { setJoystickActive(true); setJoystickPos({ x: 0, y: 0 }); },
+      onPanResponderGrant: (evt) => {
+        const { pageX, pageY } = evt.nativeEvent;
+        setJoystickCenter({ x: pageX, y: pageY });
+        setJoystickKnob({ x: 0, y: 0 });
+        setJoystickVisible(true);
+      },
       onPanResponderMove: (_, gestureState) => {
         const { dx, dy } = gestureState;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const maxDist = JOYSTICK_SIZE / 2 - JOYSTICK_KNOB_SIZE / 2;
+        const maxDist = JOYSTICK_RADIUS - KNOB_RADIUS;
         const clampedDist = Math.min(dist, maxDist);
         const angle = Math.atan2(dy, dx);
-        setJoystickPos({ x: Math.cos(angle) * clampedDist, y: Math.sin(angle) * clampedDist });
-        if (dist > 10) snakeRef.current.setDirectionFromAngle(angle);
+        setJoystickKnob({
+          x: Math.cos(angle) * clampedDist,
+          y: Math.sin(angle) * clampedDist,
+        });
+        if (dist > 15) snakeRef.current.setDirectionFromAngle(angle);
       },
-      onPanResponderRelease: () => { setJoystickActive(false); setJoystickPos({ x: 0, y: 0 }); },
+      onPanResponderRelease: () => {
+        setJoystickVisible(false);
+        setJoystickKnob({ x: 0, y: 0 });
+      },
     }),
   ).current;
 
@@ -356,17 +303,10 @@ export const GameCanvas: React.FC = () => {
   const score = Math.max(0, snake.body.length - 5);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} {...joystickPanResponder.panHandlers}>
       {/* Fullscreen game board */}
       <View style={styles.gameBoard}>
-        <GameRenderer
-          snakeBody={snake.body}
-          foods={foods}
-          theme={theme}
-          aiSnakes={aiSnakesData}
-          traps={trapsData}
-          fog={fogData}
-        />
+        <GameRenderer snakeBody={snake.body} foods={foods} theme={theme} aiSnakes={aiSnakesData} traps={trapsData} fog={fogData} />
       </View>
 
       {/* HUD overlay - top */}
@@ -378,7 +318,7 @@ export const GameCanvas: React.FC = () => {
           <Text style={styles.scoreText}>{score}</Text>
         </View>
         <View style={styles.topRightBtns}>
-          <TouchableOpacity style={[styles.hudBtn, { backgroundColor: 'rgba(0,0,0,0.4)' }]} onPress={handleOrientationToggle}>
+          <TouchableOpacity style={[styles.hudBtn, { backgroundColor: 'rgba(0,0,0,0.35)' }]} onPress={handleOrientationToggle}>
             <Text style={styles.hudBtnText}>{orientation === 'portrait' ? '📺' : '📱'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.hudBtn, { marginLeft: 8 }]} onPress={handlePauseToggle}>
@@ -387,10 +327,10 @@ export const GameCanvas: React.FC = () => {
         </View>
       </View>
 
-      {/* Ranking overlay - left side */}
+      {/* Ranking overlay */}
       <RealtimeRanking entries={rankingData} />
 
-      {/* Buffs overlay - right side */}
+      {/* Buffs overlay */}
       {activeBuffs.length > 0 && (
         <View style={styles.buffBar}>
           {activeBuffs.map((buff, i) => {
@@ -406,7 +346,7 @@ export const GameCanvas: React.FC = () => {
         </View>
       )}
 
-      {/* Kill feed - bottom left */}
+      {/* Kill feed */}
       {killFeed.length > 0 && (
         <View style={styles.killFeed}>
           {killFeed.slice(-3).map((kill) => (
@@ -415,12 +355,16 @@ export const GameCanvas: React.FC = () => {
         </View>
       )}
 
-      {/* Joystick - bottom right */}
-      <View style={styles.joystickArea} {...joystickPanResponder.panHandlers}>
-        <View style={[styles.joystickBase, { opacity: joystickActive ? 0.8 : 0.4 }]}>
-          <View style={[styles.joystickKnob, { transform: [{ translateX: joystickPos.x }, { translateY: joystickPos.y }], backgroundColor: colors.snake }]} />
+      {/* Floating joystick */}
+      {joystickVisible && (
+        <View style={[styles.joystickBase, { left: joystickCenter.x - JOYSTICK_RADIUS, top: joystickCenter.y - JOYSTICK_RADIUS }]}>
+          <View style={[styles.joystickKnob, {
+            left: JOYSTICK_RADIUS - KNOB_RADIUS + joystickKnob.x,
+            top: JOYSTICK_RADIUS - KNOB_RADIUS + joystickKnob.y,
+            backgroundColor: colors.snake,
+          }]} />
         </View>
-      </View>
+      )}
 
       {/* Pause overlay */}
       {isPaused && (
@@ -451,26 +395,31 @@ const styles = StyleSheet.create({
   },
   topRightBtns: { flexDirection: 'row', alignItems: 'center' },
   hudBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center',
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
-  hudBtnText: { fontSize: 16, color: '#FFF', fontWeight: '700' },
+  hudBtnText: { fontSize: 17, color: '#FFF', fontWeight: '700' },
   scoreBadge: {
-    backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 20, paddingVertical: 6,
-    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 22, paddingVertical: 7,
+    borderRadius: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
   },
   scoreText: { fontSize: 24, fontWeight: '800', color: '#333' },
-  joystickArea: {
-    position: 'absolute', bottom: 30, right: 20,
-    width: JOYSTICK_SIZE, height: JOYSTICK_SIZE,
-  },
   joystickBase: {
-    width: JOYSTICK_SIZE, height: JOYSTICK_SIZE, borderRadius: JOYSTICK_SIZE / 2,
-    backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
+    position: 'absolute',
+    width: JOYSTICK_RADIUS * 2,
+    height: JOYSTICK_RADIUS * 2,
+    borderRadius: JOYSTICK_RADIUS,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   joystickKnob: {
-    width: JOYSTICK_KNOB_SIZE, height: JOYSTICK_KNOB_SIZE, borderRadius: JOYSTICK_KNOB_SIZE / 2,
+    position: 'absolute',
+    width: KNOB_RADIUS * 2,
+    height: KNOB_RADIUS * 2,
+    borderRadius: KNOB_RADIUS,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
   },
   pauseOverlay: {
@@ -484,27 +433,14 @@ const styles = StyleSheet.create({
   },
   pauseEmoji: { fontSize: 48, marginBottom: 12 },
   pauseTitle: { fontSize: 26, fontWeight: '700', color: '#333', marginBottom: 24 },
-  pauseBtn: {
-    width: '100%', height: 48, borderRadius: 24,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
-  },
+  pauseBtn: { width: '100%', height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   pauseBtnText: { color: '#FFF', fontSize: 18, fontWeight: '700' },
   lobbyBtn: { paddingVertical: 8 },
   lobbyBtnText: { fontSize: 15, color: '#999', fontWeight: '500' },
-  buffBar: {
-    position: 'absolute', top: 100, right: 12, flexDirection: 'column', gap: 6,
-  },
-  buffItem: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
-    borderWidth: 1, overflow: 'hidden', minWidth: 50,
-  },
+  buffBar: { position: 'absolute', top: 100, right: 12, flexDirection: 'column', gap: 6 },
+  buffItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, overflow: 'hidden', minWidth: 50 },
   buffEmoji: { fontSize: 14, marginRight: 4 },
   buffProgress: { position: 'absolute', bottom: 0, left: 0, height: 2, borderRadius: 1 },
-  killFeed: {
-    position: 'absolute', bottom: 160, left: 12,
-    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10,
-    paddingVertical: 6, paddingHorizontal: 10,
-  },
+  killFeed: { position: 'absolute', bottom: 160, left: 12, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10 },
   killText: { fontSize: 12, color: '#FFD700', fontWeight: '600', paddingVertical: 2 },
 });

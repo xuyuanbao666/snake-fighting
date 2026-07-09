@@ -22,9 +22,11 @@ export class SoundManager {
       const sound = new Sound(file, Sound.MAIN_BUNDLE, (error) => {
         if (error) {
           console.log(`Failed to load sound ${file}:`, error);
+          sound.release();
+          return;
         }
+        this.sounds.set(key, sound);
       });
-      this.sounds.set(key, sound);
     });
   }
 

@@ -1,6 +1,51 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { FoodType, Theme } from '../utils/constants';
 
+export type Difficulty = 'easy' | 'hard' | 'hell' | 'impossible';
+
+export const DIFFICULTY_CONFIG = {
+  easy: {
+    label: '简单',
+    emoji: '😊',
+    aiCount: 2,
+    aiSpeed: 0.09,
+    aiIntelligence: 0.3,
+    playerSpeed: 0.15,
+    foodSpecialChance: 0.15,
+    description: 'AI 反应慢，数量少',
+  },
+  hard: {
+    label: '困难',
+    emoji: '😤',
+    aiCount: 3,
+    aiSpeed: 0.13,
+    aiIntelligence: 0.6,
+    playerSpeed: 0.15,
+    foodSpecialChance: 0.1,
+    description: 'AI 更快更聪明',
+  },
+  hell: {
+    label: '地狱',
+    emoji: '💀',
+    aiCount: 4,
+    aiSpeed: 0.16,
+    aiIntelligence: 0.8,
+    playerSpeed: 0.15,
+    foodSpecialChance: 0.05,
+    description: 'AI 极速围堵',
+  },
+  impossible: {
+    label: '虾连奶',
+    emoji: '🦐',
+    aiCount: 5,
+    aiSpeed: 0.19,
+    aiIntelligence: 0.95,
+    playerSpeed: 0.14,
+    foodSpecialChance: 0.03,
+    description: '不可能通关',
+  },
+} as const;
+
 export interface Position {
   x: number;
   y: number;
@@ -30,6 +75,7 @@ export interface GameState {
   isPlaying: boolean;
   isPaused: boolean;
   theme: Theme;
+  difficulty: Difficulty;
   foodEaten: number;
 }
 
@@ -55,6 +101,7 @@ const initialState: GameState = {
   isPlaying: false,
   isPaused: false,
   theme: 'classic',
+  difficulty: 'easy' as Difficulty,
   foodEaten: 0,
 };
 
@@ -115,6 +162,9 @@ const gameSlice = createSlice({
     setTheme(state, action: PayloadAction<Theme>) {
       state.theme = action.payload;
     },
+    setDifficulty(state, action: PayloadAction<Difficulty>) {
+      state.difficulty = action.payload;
+    },
     setShielded(state, action: PayloadAction<boolean>) {
       state.snake.isShielded = action.payload;
     },
@@ -130,7 +180,8 @@ const gameSlice = createSlice({
     resetGame(state) {
       const highScore = state.highScore;
       const theme = state.theme;
-      return { ...initialState, highScore, theme };
+      const difficulty = state.difficulty;
+      return { ...initialState, highScore, theme, difficulty };
     },
   },
 });
@@ -146,6 +197,7 @@ export const {
   setPlaying,
   setPaused,
   setTheme,
+  setDifficulty,
   setShielded,
   setBoosted,
   setMagnetized,

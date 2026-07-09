@@ -2,6 +2,11 @@ import { GRID_SIZE, Position } from '../utils/constants';
 
 const AI_COLORS = ['#FF6B6B', '#4ECDC4', '#A8E6CF', '#FFD93D', '#6C5CE7'];
 
+export interface AIConfig {
+  speed: number;
+  intelligence: number;
+}
+
 export class AISnake {
   body: Position[];
   velocityX: number;
@@ -13,8 +18,9 @@ export class AISnake {
   private wanderAngle: number;
   private behaviorTimer: number;
   private behavior: 'chase' | 'intercept' | 'wander' | 'flee' = 'wander';
+  private intelligence: number;
 
-  constructor(name: string, color: string, startX: number, startY: number) {
+  constructor(name: string, color: string, startX: number, startY: number, config: AIConfig) {
     this.body = [
       { x: startX, y: startY },
       { x: startX - 1, y: startY },
@@ -22,12 +28,13 @@ export class AISnake {
     ];
     this.velocityX = 1;
     this.velocityY = 0;
-    this.speed = 0.13;
+    this.speed = config.speed;
     this.color = color;
     this.name = name;
     this.alive = true;
     this.wanderAngle = Math.random() * Math.PI * 2;
     this.behaviorTimer = 0;
+    this.intelligence = config.intelligence;
   }
 
   update(foods: Position[], playerHead: Position, playerBody: Position[]): void {
@@ -47,6 +54,13 @@ export class AISnake {
   private decideBehavior(foods: Position[], playerHead: Position, playerBody: Position[]): void {
     const head = this.body[0];
     const distToPlayer = this.distance(head, playerHead);
+    const rand = Math.random();
+
+    // Intelligence gates behavior - low intelligence means more random wandering
+    if (rand > this.intelligence) {
+      this.behavior = 'wander';
+      return;
+    }
 
     // Find nearest food
     let nearestFood: Position | null = null;
@@ -70,13 +84,13 @@ export class AISnake {
       }
     }
 
-    const rand = Math.random();
+    const behaviorRand = Math.random();
 
     // If close to player, try to intercept or encircle
     if (distToPlayer < 8 && this.body.length > playerBody.length * 0.7) {
-      if (rand < 0.5) {
+      if (behaviorRand < 0.5) {
         this.behavior = 'intercept';
-      } else if (rand < 0.8) {
+      } else if (behaviorRand < 0.8) {
         this.behavior = 'chase';
       } else {
         this.behavior = 'wander';
@@ -91,7 +105,7 @@ export class AISnake {
       this.behavior = 'chase';
     }
     // Otherwise wander or try to cut off player
-    else if (rand < 0.3 && distToPlayer < 20) {
+    else if (behaviorRand < 0.3 && distToPlayer < 20) {
       this.behavior = 'intercept';
     } else {
       this.behavior = 'wander';
@@ -217,7 +231,7 @@ export class AISnake {
   }
 }
 
-export function createAISnakes(count: number): AISnake[] {
+export function createAISnakes(count: number, config: AIConfig): AISnake[] {
   const names = ['猎手', '拦截者', '围堵者', '抢食者', '暗影'];
   const snakes: AISnake[] = [];
   for (let i = 0; i < count; i++) {
@@ -225,7 +239,7 @@ export function createAISnakes(count: number): AISnake[] {
     const dist = 12;
     const x = GRID_SIZE / 2 + Math.cos(angle) * dist;
     const y = GRID_SIZE / 2 + Math.sin(angle) * dist;
-    snakes.push(new AISnake(names[i] || `AI${i}`, AI_COLORS[i % AI_COLORS.length], x, y));
+    snakes.push(new AISnake(names[i] || `AI${i}`, AI_COLORS[i % AI_COLORS.length], x, y, config));
   }
   return snakes;
 }

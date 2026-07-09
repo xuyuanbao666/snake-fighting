@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { setPlaying, resetGame, setTheme } from '../store/gameSlice';
+import { setPlaying, resetGame, setTheme, setDifficulty, Difficulty, DIFFICULTY_CONFIG } from '../store/gameSlice';
 import { Theme, THEME_COLORS } from '../utils/constants';
 import { LeaderboardScreen } from './LeaderboardScreen';
 
@@ -10,7 +10,7 @@ const { width: screenWidth } = Dimensions.get('window');
 
 export const MenuScreen: React.FC = () => {
   const dispatch = useDispatch();
-  const { highScore, theme } = useSelector((state: RootState) => state.game);
+  const { highScore, theme, difficulty } = useSelector((state: RootState) => state.game);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   if (showLeaderboard) {
@@ -27,6 +27,13 @@ export const MenuScreen: React.FC = () => {
     { key: 'beach', label: '沙滩', icon: '🏖️' },
     { key: 'ice', label: '冰雪', icon: '❄️' },
     { key: 'space', label: '太空', icon: '🚀' },
+  ];
+
+  const difficulties: { key: Difficulty; color: string }[] = [
+    { key: 'easy', color: '#4CAF50' },
+    { key: 'hard', color: '#FF9800' },
+    { key: 'hell', color: '#F44336' },
+    { key: 'impossible', color: '#9C27B0' },
   ];
 
   return (
@@ -53,6 +60,27 @@ export const MenuScreen: React.FC = () => {
           </TouchableOpacity>
         ))}
       </View>
+
+      <View style={styles.difficultyRow}>
+        {difficulties.map((d) => {
+          const config = DIFFICULTY_CONFIG[d.key];
+          return (
+            <TouchableOpacity
+              key={d.key}
+              style={[
+                styles.diffBtn,
+                { backgroundColor: d.color },
+                difficulty === d.key && styles.diffBtnActive,
+              ]}
+              onPress={() => dispatch(setDifficulty(d.key))}
+            >
+              <Text style={styles.diffEmoji}>{config.emoji}</Text>
+              <Text style={styles.diffLabel}>{config.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <Text style={styles.diffDesc}>{DIFFICULTY_CONFIG[difficulty].description}</Text>
 
       <TouchableOpacity style={[styles.startBtn, { backgroundColor: THEME_COLORS[theme].snake }]} onPress={handleStart}>
         <Text style={styles.startText}>开始游戏</Text>
@@ -81,11 +109,11 @@ const styles = StyleSheet.create({
   },
   logoArea: {
     alignItems: 'center',
-    marginBottom: 50,
+    marginBottom: 36,
   },
   snakeEmoji: {
-    fontSize: 100,
-    marginBottom: 10,
+    fontSize: 90,
+    marginBottom: 8,
   },
   title: {
     fontSize: 48,
@@ -102,13 +130,13 @@ const styles = StyleSheet.create({
   },
   themeRow: {
     flexDirection: 'row',
-    marginBottom: 40,
+    marginBottom: 20,
     gap: 12,
   },
   themeBtn: {
-    width: 70,
-    height: 70,
-    borderRadius: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     opacity: 0.7,
@@ -123,18 +151,54 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   themeIcon: {
-    fontSize: 24,
+    fontSize: 22,
   },
   themeLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#FFF',
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 3,
+  },
+  difficultyRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    gap: 10,
+  },
+  diffBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    alignItems: 'center',
+    opacity: 0.6,
+    minWidth: 60,
+  },
+  diffBtnActive: {
+    opacity: 1,
+    transform: [{ scale: 1.08 }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  diffEmoji: {
+    fontSize: 20,
+  },
+  diffLabel: {
+    fontSize: 11,
+    color: '#FFF',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  diffDesc: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 24,
   },
   startBtn: {
-    width: screenWidth * 0.65,
-    height: 56,
-    borderRadius: 28,
+    width: screenWidth * 0.6,
+    height: 54,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -149,35 +213,34 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2,
   },
-  scoreBox: {
-    marginTop: 40,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    paddingHorizontal: 30,
-    paddingVertical: 16,
-    borderRadius: 16,
-  },
-  scoreLabel: {
-    fontSize: 13,
-    color: '#888',
-    fontWeight: '500',
-  },
-  scoreValue: {
-    fontSize: 36,
-    fontWeight: '800',
-    marginTop: 4,
-  },
   bottomRow: {
-    marginTop: 40,
+    marginTop: 32,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
   },
+  scoreBox: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 16,
+  },
+  scoreLabel: {
+    fontSize: 12,
+    color: '#888',
+    fontWeight: '500',
+  },
+  scoreValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    marginTop: 2,
+  },
   leaderboardBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -186,12 +249,12 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   leaderboardIcon: {
-    fontSize: 24,
+    fontSize: 22,
   },
   leaderboardText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#FFF',
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 3,
   },
 });

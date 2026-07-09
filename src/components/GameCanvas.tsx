@@ -10,6 +10,7 @@ import {
   setPlaying,
   setPaused,
   updateSnakeBody,
+  DIFFICULTY_CONFIG,
 } from '../store/gameSlice';
 import { Snake } from '../engine/Snake';
 import { AISnake, createAISnakes } from '../engine/AISnake';
@@ -33,7 +34,7 @@ export const GameCanvas: React.FC = () => {
   const foodRef = useRef<Food>(new Food());
   const gameLoopRef = useRef<GameLoop | null>(null);
 
-  const { snake, food, isPlaying, isPaused, theme } = useSelector(
+  const { snake, food, isPlaying, isPaused, theme, difficulty } = useSelector(
     (state: RootState) => state.game,
   );
 
@@ -171,8 +172,13 @@ export const GameCanvas: React.FC = () => {
     const isNewGame = !wasPlaying;
 
     if (isNewGame) {
+      const diffConfig = DIFFICULTY_CONFIG[difficulty];
       snakeRef.current = new Snake();
-      aiSnakesRef.current = createAISnakes(3);
+      snakeRef.current.speed = diffConfig.playerSpeed;
+      aiSnakesRef.current = createAISnakes(diffConfig.aiCount, {
+        speed: diffConfig.aiSpeed,
+        intelligence: diffConfig.aiIntelligence,
+      });
       const bodyCopy = snakeRef.current.body.map(p => ({ x: p.x, y: p.y }));
       dispatch(updateSnakeBody(bodyCopy));
       generateNewFoodRef.current();
@@ -188,7 +194,7 @@ export const GameCanvas: React.FC = () => {
     return () => {
       gameLoopRef.current?.stop();
     };
-  }, [isPlaying, isPaused, dispatch]);
+  }, [isPlaying, isPaused, dispatch, difficulty]);
 
   const joystickPanResponder = useRef(
     PanResponder.create({

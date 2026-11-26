@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import { CELL_SIZE, GRID_SIZE, THEME_COLORS, Theme, FoodType, FOOD_CONFIG } from '../utils/constants';
 import { Position } from '../store/gameSlice';
@@ -77,8 +77,9 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
   offsetX = Math.max(0, Math.min(offsetX, GRID_SIZE - viewCols));
   offsetY = Math.max(0, Math.min(offsetY, GRID_SIZE - viewRows));
 
-  const inView = (x: number, y: number) =>
-    x >= offsetX - 2 && x <= offsetX + viewCols + 2 && y >= offsetY - 2 && y <= offsetY + viewRows + 2;
+  const inView = useCallback((x: number, y: number) =>
+    x >= offsetX - 2 && x <= offsetX + viewCols + 2 && y >= offsetY - 2 && y <= offsetY + viewRows + 2,
+    [offsetX, offsetY, viewCols, viewRows]);
 
   const snakeSegments = useMemo(() => {
     if (!snakeBody || snakeBody.length === 0) return null;
@@ -92,13 +93,13 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
       const r = segR * (1 - i / snakeBody.length * 0.3);
       return <SnakeSegment key={i} x={vx} y={vy} color={colors.snake} alpha={alpha} radius={r} />;
     });
-  }, [snakeBody, offsetX, offsetY, colors.snake, dims]);
+  }, [snakeBody, offsetX, offsetY, colors.snake, inView]);
 
   const foodElements = useMemo(() =>
     foods.filter(f => inView(f.position.x, f.position.y)).map((f, i) => (
       <FoodItem key={i} x={f.position.x - offsetX} y={f.position.y - offsetY} type={f.type} />
     )),
-    [foods, offsetX, offsetY, dims]);
+    [foods, offsetX, offsetY, inView]);
 
   const aiElements = useMemo(() => {
     const segR = CELL_SIZE * 0.35;
@@ -117,33 +118,33 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
       }
     }
     return els;
-  }, [aiSnakes, offsetX, offsetY, dims]);
+  }, [aiSnakes, offsetX, offsetY, inView]);
 
   const trapElements = useMemo(() =>
-    traps.filter(t => t.active && inView(t.x, t.y)).map((t, i) => {
+    traps.filter(t => inView(t.x, t.y)).map((t, i) => {
       const vx = (t.x - offsetX) * CELL_SIZE;
       const vy = (t.y - offsetY) * CELL_SIZE;
       const sz = t.radius * CELL_SIZE * 2;
       const c = t.type === 'spike' ? '#FF5722' : t.type === 'poison' ? '#9C27B0' : '#FF9800';
       return <View key={`t${i}`} style={{ position: 'absolute', left: vx - sz / 2, top: vy - sz / 2, width: sz, height: sz, borderRadius: sz / 2, backgroundColor: c + '40', borderWidth: 2, borderColor: c, borderStyle: 'dashed' }} />;
     }),
-    [traps, offsetX, offsetY, dims]);
+    [traps, offsetX, offsetY, inView]);
 
   const fogElements = useMemo(() => {
     if (!fog) return null;
     const l = Math.max(0, (fog.minX - offsetX) * CELL_SIZE);
     const t = Math.max(0, (fog.minY - offsetY) * CELL_SIZE);
-    const r = Math.max(0, (GRID_SIZE - fog.maxX - offsetX) * CELL_SIZE);
-    const b = Math.max(0, (GRID_SIZE - fog.maxY - offsetY) * CELL_SIZE);
+    const r = Math.max(0, viewW - (fog.maxX - offsetX) * CELL_SIZE);
+    const b = Math.max(0, viewH - (fog.maxY - offsetY) * CELL_SIZE);
     return (
       <>
         {t > 0 && <View style={[styles.fog, { top: 0, left: 0, right: 0, height: t }]} />}
         {b > 0 && <View style={[styles.fog, { bottom: 0, left: 0, right: 0, height: b }]} />}
         {l > 0 && <View style={[styles.fog, { top: 0, left: 0, bottom: 0, width: l }]} />}
-        {r > 0 && <View style={[styles.fog, { top: 0, right: 0, bottom: 0, width: l }]} />}
+        {r > 0 && <View style={[styles.fog, { top: 0, right: 0, bottom: 0, width: r }]} />}
       </>
     );
-  }, [fog, offsetX, offsetY, dims]);
+  }, [fog, offsetX, offsetY, viewW, viewH]);
 
   if (!snakeBody || snakeBody.length === 0) {
     return <View style={[styles.root, { width: dims.w, height: dims.h, backgroundColor: colors.background }]} />;
@@ -195,7 +196,7 @@ export const GameRenderer: React.FC<GameRendererProps> = ({
             }]} />
           ))}
           {/* AI snakes */}
-          {aiSnakes.map((ai, i) => (
+          {aiSnakes.filter(ai => ai.body.length > 0).map((ai, i) => (
             <View key={i} style={[styles.minimapDot, {
               left: ai.body[0].x * MINIMAP_SCALE - 1.5,
               top: ai.body[0].y * MINIMAP_SCALE - 1.5,

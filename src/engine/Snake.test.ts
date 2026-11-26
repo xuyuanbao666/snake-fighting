@@ -1,54 +1,46 @@
 import { Snake } from './Snake';
-import { Direction } from '../utils/constants';
+import { GRID_SIZE } from '../utils/constants';
 
 describe('Snake', () => {
   let snake: Snake;
+  beforeEach(() => { snake = new Snake(); });
 
-  beforeEach(() => {
-    snake = new Snake();
+  it('initializes a five-segment snake', () => {
+    expect(snake.body).toHaveLength(5);
   });
 
-  it('should initialize with correct length', () => {
-    expect(snake.body.length).toBe(3);
-  });
-
-  it('should move right by default', () => {
-    const initialHead = { ...snake.body[0] };
+  it('moves continuously at its configured speed', () => {
+    const head = { ...snake.getHead() };
     snake.move();
-    expect(snake.body[0].x).toBe(initialHead.x + 1);
-    expect(snake.body[0].y).toBe(initialHead.y);
+    expect(snake.getHead().x).toBeCloseTo(head.x + snake.speed);
+    expect(snake.getHead().y).toBeCloseTo(head.y);
+    expect(snake.body).toHaveLength(5);
   });
 
-  it('should change direction', () => {
-    snake.setDirection(Direction.DOWN);
+  it('turns using joystick angles', () => {
+    const head = { ...snake.getHead() };
+    snake.setDirectionFromAngle(Math.PI / 2);
     snake.move();
-    expect(snake.body[0].y).toBe(11);
+    expect(snake.getHead().x).toBeCloseTo(head.x);
+    expect(snake.getHead().y).toBeCloseTo(head.y + snake.speed);
   });
 
-  it('should not reverse direction', () => {
-    snake.setDirection(Direction.LEFT);
-    expect(snake.direction).toBe(Direction.RIGHT);
-  });
-
-  it('should grow when eating', () => {
+  it('grows by one segment', () => {
     snake.grow();
-    expect(snake.body.length).toBe(4);
+    expect(snake.body).toHaveLength(6);
   });
 
-  it('should detect wall collision', () => {
-    snake.body[0] = { x: 0, y: 0 };
-    snake.setDirection(Direction.UP);
-    snake.move();
-    expect(snake.checkWallCollision()).toBe(true);
+  it('detects all four wall boundaries', () => {
+    for (const head of [{ x: 0, y: 50 }, { x: GRID_SIZE, y: 50 }, { x: 50, y: 0 }, { x: 50, y: GRID_SIZE }]) {
+      snake.body[0] = head;
+      expect(snake.checkWallCollision()).toBe(true);
+    }
+    snake.body[0] = { x: 50, y: 50 };
+    expect(snake.checkWallCollision()).toBe(false);
   });
 
-  it('should detect self collision', () => {
-    snake.body = [
-      { x: 5, y: 5 },
-      { x: 4, y: 5 },
-      { x: 3, y: 5 },
-      { x: 4, y: 5 },
-    ];
-    expect(snake.checkSelfCollision()).toBe(true);
+  it('permits self overlap in the continuous slither rules', () => {
+    snake.body = [{ x: 5, y: 5 }, { x: 4, y: 5 }, { x: 5, y: 5 }];
+    expect(snake.checkSelfCollision()).toBe(false);
   });
 });

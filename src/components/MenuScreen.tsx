@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { setPlaying, resetGame, setTheme, setDifficulty, setGameMode, toggleOrientation, Difficulty, DIFFICULTY_CONFIG, GameMode, GAME_MODE_CONFIG } from '../store/gameSlice';
+import { setPlaying, resetGame, setTheme, setDifficulty, setGameMode, toggleOrientation, Difficulty, DIFFICULTY_CONFIG } from '../store/gameSlice';
 import { Theme, THEME_COLORS } from '../utils/constants';
 import { LeaderboardScreen } from './LeaderboardScreen';
 

@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { THEME_COLORS } from '../utils/constants';
 import { Storage, LeaderboardEntry } from '../utils/storage';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 interface Props {
   onClose: () => void;

@@ -17,7 +17,7 @@ describe('Food', () => {
   });
 
   it('should not generate food on snake body', () => {
-    const snakeBody: Position[] = Array.from({ length: 400 }, (_, i) => ({
+    const snakeBody: Position[] = Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, i) => ({
       x: i % GRID_SIZE,
       y: Math.floor(i / GRID_SIZE),
     }));
@@ -25,24 +25,22 @@ describe('Food', () => {
   });
 
   it('should generate special food with probability', () => {
-    const types: FoodType[] = [];
-    for (let i = 0; i < 100; i++) {
-      types.push(food.getRandomType(100));
-    }
-    expect(types).toContain(FoodType.STAR);
+    const random = jest.spyOn(Math, 'random');
+    try {
+      random.mockReturnValue(0.01);
+      expect(food.getRandomType(0)).toBe(FoodType.DIAMOND);
+      random.mockReturnValue(0.1);
+      expect(food.getRandomType(0)).toBe(FoodType.APPLE);
+      random.mockReturnValue(0.9);
+      expect(food.getRandomType(0)).toBe(FoodType.STAR);
+    } finally { random.mockRestore(); }
   });
 
   it('should increase special food chance with score', () => {
-    const lowScoreTypes: FoodType[] = [];
-    const highScoreTypes: FoodType[] = [];
-
-    for (let i = 0; i < 100; i++) {
-      lowScoreTypes.push(food.getRandomType(0));
-      highScoreTypes.push(food.getRandomType(500));
-    }
-
-    const lowSpecial = lowScoreTypes.filter(t => t !== FoodType.STAR).length;
-    const highSpecial = highScoreTypes.filter(t => t !== FoodType.STAR).length;
-    expect(highSpecial).toBeGreaterThanOrEqual(lowSpecial);
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0.2);
+    try {
+      expect(food.getRandomType(0)).toBe(FoodType.STAR);
+      expect(food.getRandomType(500)).toBe(FoodType.APPLE);
+    } finally { random.mockRestore(); }
   });
 });

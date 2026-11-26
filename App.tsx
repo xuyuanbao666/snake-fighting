@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider, useSelector } from 'react-redux';
@@ -10,8 +10,6 @@ import { MenuScreen } from './src/components/MenuScreen';
 
 function AppContent() {
   const { isPlaying, score, orientation } = useSelector((state: RootState) => state.game);
-  const prevOrientationRef = useRef(orientation);
-  const prevIsPlayingRef = useRef(isPlaying);
 
   // Apply orientation immediately when it changes
   useEffect(() => {
@@ -50,7 +48,7 @@ function AppContent() {
       clearTimeout(timer1);
       clearTimeout(timer2);
     };
-  }, [isPlaying, score]);
+  }, [isPlaying, score, orientation]);
 
   // Fullscreen during gameplay
   useEffect(() => {

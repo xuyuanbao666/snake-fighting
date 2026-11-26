@@ -78,7 +78,6 @@ export class Renderer {
   }
 
   drawFood(x: number, y: number, type: FoodType): void {
-    const colors = THEME_COLORS[this.theme];
     const centerX = x * CELL_SIZE + CELL_SIZE / 2;
     const centerY = y * CELL_SIZE + CELL_SIZE / 2;
 

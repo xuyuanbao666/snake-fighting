@@ -4,10 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import Orientation from 'react-native-orientation-locker';
 import { RootState } from '../store';
 import {
-  growSnake,
   setFoods,
-  addFood,
-  removeFood,
   addScore,
   incrementFoodEaten,
   setPlaying,
@@ -21,7 +18,7 @@ import { AISnake, createAISnakes, spawnSingleAI } from '../engine/AISnake';
 import { Food } from '../engine/Food';
 import { Collision } from '../engine/Collision';
 import { GameLoop } from '../engine/GameLoop';
-import { TrapManager, PoisonFog, ActiveBuff, BuffType, BUFF_CONFIG, getRandomBuff } from '../engine/Hazard';
+import { TrapManager, PoisonFog, ActiveBuff, BUFF_CONFIG, getRandomBuff } from '../engine/Hazard';
 import { FoodType, FOOD_CONFIG, THEME_COLORS, GRID_SIZE } from '../utils/constants';
 import { soundManager } from '../utils/sound';
 import { Storage } from '../utils/storage';
@@ -92,10 +89,13 @@ export const GameCanvas: React.FC = () => {
         try {
           const pos = foodRef.current.generate([...occupied, ...newFoods.map(f => f.position)]);
           newFoods.push({ position: pos, type: foodType });
-        } catch (e) { break; }
+        } catch { break; }
       }
     }
-    if (newFoods.length > 0) dispatch(setFoods([...foodsRef.current, ...newFoods]));
+    if (newFoods.length > 0) {
+      foodsRef.current = [...foodsRef.current, ...newFoods];
+      dispatch(setFoods(foodsRef.current));
+    }
   }, [dispatch, getAllOccupiedPositions]);
 
   const spawnFoodsRef = useRef(spawnFoods);
@@ -252,7 +252,7 @@ export const GameCanvas: React.FC = () => {
     const headGrid = { x: Math.round(head.x), y: Math.round(head.y) };
     let ate = false;
     let ateIndex = -1;
-    let ateType = FoodType.STAR;
+    let ateType: FoodType = FoodType.STAR;
     for (let fi = 0; fi < currentFoods.length; fi++) {
       if (foodsToRemove.has(fi)) continue;
       if (Collision.checkFoodCollision(headGrid, currentFoods[fi].position)) {
@@ -279,7 +279,7 @@ export const GameCanvas: React.FC = () => {
       spawnFoodsRef.current();
     }
 
-    if (killedAi) setActiveBuffs([...activeBuffsRef.current]);
+    if (killedAi || frameCountRef.current % 3 === 0) setActiveBuffs([...activeBuffsRef.current]);
 
     frameCountRef.current++;
     if (frameCountRef.current % 3 === 0) {
@@ -287,19 +287,16 @@ export const GameCanvas: React.FC = () => {
       setAiSnakesData(aiSnakesRef.current.filter(s => s.alive).map(s => ({ body: s.body.map(p => ({ ...p })), color: s.color, name: s.name })));
       updateRanking();
     }
-  }, [dispatch, theme, updateRanking, difficulty, gameMode]);
+  }, [dispatch, theme, updateRanking, difficulty, gameMode, snake.isShielded]);
 
   const handleGameUpdateRef = useRef(handleGameUpdate);
   useEffect(() => { handleGameUpdateRef.current = handleGameUpdate; }, [handleGameUpdate]);
 
   const prevIsPlaying = useRef(false);
-  const prevIsPaused = useRef(false);
 
   useEffect(() => {
     const wasPlaying = prevIsPlaying.current;
-    const wasPaused = prevIsPaused.current;
     prevIsPlaying.current = isPlaying;
-    prevIsPaused.current = isPaused;
     if (!isPlaying) { gameLoopRef.current?.stop(); return; }
     if (isPaused) { gameLoopRef.current?.stop(); return; }
     if (!wasPlaying) {
@@ -325,7 +322,7 @@ export const GameCanvas: React.FC = () => {
     gameLoopRef.current = new GameLoop(() => handleGameUpdateRef.current(), 16);
     gameLoopRef.current.start();
     return () => { gameLoopRef.current?.stop(); };
-  }, [isPlaying, isPaused, dispatch, difficulty]);
+  }, [isPlaying, isPaused, dispatch, difficulty, gameMode]);
 
   // Floating joystick - appears where finger touches
   const joystickPanResponder = useRef(

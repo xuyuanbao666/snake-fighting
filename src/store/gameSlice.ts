@@ -124,12 +124,8 @@ const gameSlice = createSlice({
     },
     moveSnake(state) {
       const head = { ...state.snake.body[0] };
-      switch (state.snake.direction) {
-        case Direction.UP: head.y--; break;
-        case Direction.DOWN: head.y++; break;
-        case Direction.LEFT: head.x--; break;
-        case Direction.RIGHT: head.x++; break;
-      }
+      head.x += Math.cos(state.snake.directionAngle);
+      head.y += Math.sin(state.snake.directionAngle);
       state.snake.body.unshift(head);
       state.snake.body.pop();
     },

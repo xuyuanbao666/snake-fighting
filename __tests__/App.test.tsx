@@ -6,7 +6,7 @@ jest.mock('react-native', () => {
   const React = require('react');
   const MockComponent = ({ children, ..._props }: any) => React.createElement('View', _props, children);
   return {
-    StatusBar: MockComponent,
+    StatusBar: Object.assign(MockComponent, { setHidden: jest.fn() }),
     StyleSheet: { create: (styles: any) => styles },
     useColorScheme: () => 'light',
     View: MockComponent,
@@ -22,13 +22,8 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaProvider: ({ children }: any) => children,
 }));
 
-jest.mock('react-native-canvas', () => {
-  const React = require('react');
-  return {
-    __esModule: true,
-    default: React.forwardRef((_props: any, _ref: any) => null),
-  };
-});
+jest.mock('react-native-orientation-locker', () => ({ __esModule: true, default: { lockToLandscape: jest.fn(), lockToPortrait: jest.fn() } }));
+jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: jest.fn().mockResolvedValue(null), setItem: jest.fn().mockResolvedValue(undefined) }));
 
 jest.mock('react-native-sound', () => {
   const MockSound = jest.fn().mockImplementation(() => ({
@@ -46,7 +41,10 @@ import ReactTestRenderer from 'react-test-renderer';
 import App from '../App';
 
 test('renders correctly', async () => {
+  let renderer: ReturnType<typeof ReactTestRenderer.create>;
   await ReactTestRenderer.act(() => {
-    ReactTestRenderer.create(<App />);
+    renderer = ReactTestRenderer.create(<App />);
   });
+  expect(renderer!.toJSON()).not.toBeNull();
+  await ReactTestRenderer.act(() => { renderer!.unmount(); });
 });

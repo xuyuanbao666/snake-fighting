@@ -21,5 +21,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
-      - run: npx tsc --noEmit
-      - run: npm test -- --ci --runInBand
+      - if: success() || failure()
+        run: npx tsc --noEmit
+      - if: success() || failure()
+        run: npm test -- --ci --runInBand

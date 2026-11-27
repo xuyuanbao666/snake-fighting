@@ -62,7 +62,8 @@ jobs:
           profile: pixel_6
           emulator-options: -no-window -gpu swangle -feature -Vulkan -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          script: bash -e -c 'if grep -qx match candidate/signing-status.txt; then adb install previous/app-release.apk; adb install -r candidate/snake-fighting-2.23.1-test.apk; else adb install candidate/snake-fighting-2.23.1-test.apk; fi; adb logcat -c; adb shell am start -W -n com.snakefighting/.MainActivity | tee candidate/launch.txt; grep -q "Status: ok" candidate/launch.txt; sleep 15; adb shell pidof com.snakefighting; adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" | grep -F com.snakefighting; adb exec-out screencap -p > candidate/screen.png; adb logcat -b crash -d > candidate/crash.txt; ! grep -F com.snakefighting candidate/crash.txt'
+          script: >-
+            bash -e -c 'if grep -qx match candidate/signing-status.txt; then adb install previous/app-release.apk; adb install -r candidate/snake-fighting-2.23.1-test.apk; else adb install candidate/snake-fighting-2.23.1-test.apk; fi; adb logcat -c; adb shell am start -W -n com.snakefighting/.MainActivity | tee candidate/launch.txt; grep -q "Status: ok" candidate/launch.txt; sleep 15; adb shell pidof com.snakefighting; adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" | grep -F com.snakefighting; adb exec-out screencap -p > candidate/screen.png; adb logcat -b crash -d > candidate/crash.txt; ! grep -F com.snakefighting candidate/crash.txt'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

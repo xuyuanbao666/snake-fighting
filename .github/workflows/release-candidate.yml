@@ -1,0 +1,71 @@
+name: Android maintenance release candidate
+on:
+  push:
+    branches: [release/maintenance-20261127]
+permissions:
+  contents: read
+jobs:
+  candidate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint && npx tsc --noEmit && npm test -- --ci --runInBand
+      - name: Install SDK
+        run: |
+          sdk="${ANDROID_HOME:?}"
+          manager="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          if [[ ! -x "$manager" ]]; then manager="$(find "$sdk/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"; fi
+          "$manager" "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006"
+      - name: Build versioned APK
+        run: |
+          cd android
+          bash gradlew --no-daemon :app:assembleRelease
+      - name: Verify version, signature and checksum; compare previous certificate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p candidate previous
+          cp "android/app/build/outputs/apk/release/app-release.apk" "candidate/snake-fighting-2.23.1-test.apk"
+          bt="$ANDROID_HOME/build-tools/36.0.0"
+          "$bt/apksigner" verify --verbose --print-certs candidate/*.apk | tee candidate/signature.txt
+          "$bt/aapt" dump badging candidate/*.apk | tee candidate/badging.txt
+          grep -F "package: name='com.snakefighting' versionCode='39' versionName='2.23.1'" candidate/badging.txt
+          (cd candidate && sha256sum *.apk > SHA256SUMS.txt && sha256sum -c SHA256SUMS.txt)
+          gh release download "v2.23.0" --repo "$GITHUB_REPOSITORY" --pattern "app-release.apk" --dir previous
+          "$bt/apksigner" verify --print-certs previous/*.apk | tee candidate/previous-signature.txt
+          new="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' candidate/signature.txt)"
+          old="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' candidate/previous-signature.txt)"
+          test -n "$old" && test -n "$new"
+          if [[ "$new" == "$old" ]]; then echo match > candidate/signing-status.txt; else echo mismatch > candidate/signing-status.txt; fi
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Verify install and compatible upgrade when certificate matches
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swangle -feature -Vulkan -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash -e -c 'if grep -qx match candidate/signing-status.txt; then adb install previous/app-release.apk; adb install -r candidate/snake-fighting-2.23.1-test.apk; else adb install candidate/snake-fighting-2.23.1-test.apk; fi; adb logcat -c; adb shell am start -W -n com.snakefighting/.MainActivity | tee candidate/launch.txt; grep -q "Status: ok" candidate/launch.txt; sleep 15; adb shell pidof com.snakefighting; adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity" | grep -F com.snakefighting; adb exec-out screencap -p > candidate/screen.png; adb logcat -b crash -d > candidate/crash.txt; ! grep -F com.snakefighting candidate/crash.txt'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snake-fighting-2.23.1-candidate
+          path: candidate/
+          if-no-files-found: error
